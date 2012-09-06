@@ -4,6 +4,8 @@ import cliapp
 import json
 import logging
 import requests
+import sys
+import time
 from pprint import pprint
 
 
@@ -11,6 +13,9 @@ class TestApp(cliapp.Application):
     def add_settings(self):
         self.settings.string(['api_endpoint'], 'URI for Roush Endpoint',
                              default='http://0.0.0.0:8080')
+        self.settings.boolean(['poll'], 'Polls a task after it has been' \
+                              'created until it has been completed',
+                              default=False)
         self.settings.load_configs()
         self.urls = {"node": self.settings['api_endpoint'] + '/nodes/',
                      "role": self.settings['api_endpoint'] + '/roles/',
@@ -63,6 +68,7 @@ class TestApp(cliapp.Application):
         if r.status_code == 201:
             print "\n".join("%s: %s" % (i, r.json[obj][i])
                             for i in self.__getattribute__('%s_cols' % obj))
+            return r.json[obj]['id']
         else:
             print "Unable to create %s: %s" % (obj.title(), r.json['message'])
 
@@ -226,7 +232,27 @@ class TestApp(cliapp.Application):
             state = args[3]
             data = {'node_id': node_id, 'action': action, 'payload': payload,
                     'state': state}
-            self._create_obj('task', data)
+            task_id = str(self._create_obj('task', data))
+        if self.settings['poll']:
+            # keep checking on the status of the created task until it 
+            # is complete
+            print "\n--waiting for task to complete--"
+            complete = False
+            count = 0
+            while not complete:
+                count += 1
+                # do something
+                r = requests.get(self.urls['task'] + task_id)
+                if r.json['state'] == 'done':
+                    complete = True
+                    sys.stdout.write('\n--task completed--\n\n')
+                    sys.stdout.flush()
+                    self.cmd_task_get([task_id])
+                else:
+                    sys.stdout.write('\r8%sD' % ('=' * count,))
+                    sys.stdout.flush()
+                    time.sleep(3)
+            
 
 #    def cmd_task_delete(self, args):
 #        '''Not Implemented: WONT FIX'''
