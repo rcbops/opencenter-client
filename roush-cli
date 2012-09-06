@@ -6,27 +6,63 @@ import logging
 import requests
 from pprint import pprint
 
+
 class TestApp(cliapp.Application):
     def add_settings(self):
-        self.settings.string(['api_endpoint'], 'URI for Roush Endpoint',             
-                        default='http://0.0.0.0:8080')
+        self.settings.string(['api_endpoint'], 'URI for Roush Endpoint',
+                             default='http://0.0.0.0:8080')
         self.settings.load_configs()
-        self.node_url = self.settings['api_endpoint'] + '/nodes/'
+        self.urls = {"node": self.settings['api_endpoint'] + '/nodes/',
+                     "role": self.settings['api_endpoint'] + '/roles/',
+                     "cluster": self.settings['api_endpoint'] + '/clusters/',
+                     "task": self.settings['api_endpoint'] + '/tasks/'}
         self.headers = {'content-type': 'application/json'}
         self.node_cols = ['id', 'hostname', 'cluster_id', 'role_id', 'config']
 
+    def _list_obj(self, obj):
+        r = requests.get(self.urls[obj])
+        for item in r.json[obj + 's']:
+            print "\n".join("%s: %s" % (i, item[i])
+                            for i in self.__getattribute__('%s_cols' % obj)
+                            ) + "\n"
+
+    def _delete_obj(self, obj_id, obj):
+        r = requests.delete(self.urls[obj] + obj_id,
+                            headers=self.headers)
+        if r.status_code == 200:
+            print "%s %s deleted" % (obj.title(), obj_id)
+        else:
+            print "Unable to delete %s: %s" % (obj.title(), obj_id)
+
+    def _get_obj(self, obj_id, obj):
+        r = requests.get(self.urls[obj] + obj_id,
+                         headers=self.headers)
+        if r.status_code == 200:
+            print "\n".join("%s: %s" % (i, r.json[i])
+                            for i in self.__getattribute__('%s_cols' % obj))
+        else:
+            print "%s %s does not exist" % (obj.title(), obj_id)
+
     def cmd_node_list(self, args):
-        r = requests.get(self.node_url)
-        out = list()
-        for node in r.json['nodes']:
-            print "\n".join("%s: %s" % (i, node[i])
-                            for i in self.node_cols)
-            print ""
+        '''List all nodes.
+        Positional Arguments: NONE
+        '''
+        self._list_obj('node')
+
+    def cmd_node_get(self, args):
+        '''Get the details for a node.
+        Positional Arguments: <node_id>
+        '''
+        node_id = args[0]
+        self._get_obj(node_id, 'node')
 
     def cmd_node_create(self, args):
+        '''Create a Node entry.
+        Positional Arguments: <hostname> <config>
+        '''
         config = None if (len(args) < 2) else args[1]
         data = {'hostname': args[0], 'config': config}
-        r = requests.post(self.node_url,
+        r = requests.post(self.urls['node'],
                           data=json.dumps(data),
                           headers=self.headers)
         if r.status_code == 201:
@@ -36,22 +72,20 @@ class TestApp(cliapp.Application):
             print "Unable to create node: %s" % r.json['message']
 
     def cmd_node_delete(self, args):
-        ''' Delete a Node from Roush.
-            Expected Inputs: <node_id>
+        '''Delete a node.
+        Positional Arguments: <node_id>
         '''
         node_id = args[0]
-        r = requests.delete(self.node_url + node_id)
-        if r.status_code == 200:
-            print "Node %s deleted" % node_id
-        else:
-            print "Unable to delete node: %s" % node_id
-        
+        self._delete_obj(node_id, 'node')
+
     def cmd_node_update(self, args):
-        '''Expected Inputs: foo, bar, meh
+        '''Create a Node entry.
+        Positional Arguments: <node_id> <config>
         '''
+        node_id = args[0]
         config = None if (len(args) < 2) else args[1]
         data = {'config': config}
-        r = requests.put(self.node_url + args[0],
+        r = requests.put(self.urls['node'] + node_id,
                          data=json.dumps(data),
                          headers=self.headers)
         if r.status_code == 200:
@@ -61,24 +95,89 @@ class TestApp(cliapp.Application):
             pprint(r)
             # print "Unable to update node: %s" % r.json['message']
 
+
     def cmd_role_list(self, args):
-        print 'Role List: %s' %args
+        '''List all roles.
+        Positional Arguments: NONE
+        '''
+        self._list_obj('role')
+
+    def cmd_role_get(self, args):
+        '''Get the details for a role.
+        Positional Arguments: <role_id>
+        '''
+        role_id = args[0]
+        self._get_obj(role_id, 'role')
+
     def cmd_role_create(self, args):
-        print 'Role Create: %s' %args
+        '''Not Implemented'''
+        pass
+
     def cmd_role_delete(self, args):
-        print 'Role Delete: %s' %args
+        '''Delete a role.
+        Positional Arguments: <role_id>
+        '''
+        role_id = args[0]
+        self._delete_obj(role_id, 'role')
+
     def cmd_role_update(self, args):
-        print 'Role Update: %s' %args
+        '''Not Implemented'''
+        pass
+
 
     def cmd_cluster_list(self, args):
-        print 'Cluster List: %s' %args
-    def cmd_cluster_create(self, args):
-        print 'Cluster Create: %s' %args
-    def cmd_cluster_delete(self, args):
-        print 'Cluster Delete: %s' %args
-    def cmd_cluster_update(self, args):
-        print 'Cluster Update: %s' %args
+        '''List all clusters.
+        Positional Arguments: NONE
+        '''
+        self._list_obj('cluster')
 
+    def cmd_cluster_get(self, args):
+        '''Get the details for a cluster.
+        Positional Arguments: <cluster_id>
+        '''
+        cluster_id = args[0]
+        self._get_obj(cluster_id, 'cluster')
+
+    def cmd_cluster_create(self, args):
+        '''Not Implemented'''
+        pass
+
+    def cmd_cluster_delete(self, args):
+        '''Delete a cluster.
+        Positional Arguments: <cluster_id>
+        '''
+        cluster_id = args[0]
+        self._delete_obj(cluster_id, 'cluster')
+
+    def cmd_cluster_update(self, args):
+        '''Not Implemented'''
+        pass
+
+
+    def cmd_task_list(self, args):
+        '''List all tasks.
+        Positional Arguments: NONE
+        '''
+        self._list_obj('task')
+
+    def cmd_task_get(self, args):
+        '''Get the details for a task.
+        Positional Arguments: <task_id>
+        '''
+        task_id = args[0]
+        self._get_obj(task_id, 'task')
+
+    def cmd_task_create(self, args):
+        '''Not Implemented'''
+        pass
+
+    def cmd_task_delete(self, args):
+        '''Not Implemented '''
+        pass
+
+    def cmd_task_update(self, args):
+        '''Not Implemented'''
+        pass
 
 if __name__ == '__main__':
     app = TestApp(version='0.0.1')
