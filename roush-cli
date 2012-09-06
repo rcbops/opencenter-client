@@ -158,7 +158,6 @@ class TestApp(cliapp.Application):
 #        '''Not Implemented: WONT FIX'''
 #        pass
 
-
     def cmd_cluster_list(self, args):
         '''List all clusters.
         Positional Arguments: NONE
