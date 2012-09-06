@@ -54,6 +54,16 @@ class TestApp(cliapp.Application):
         else:
             print "Unable to update %s %s" % (obj.title(), obj_id)
 
+    def _create_obj(self, obj, payload):
+        r = requests.post(self.urls[obj],
+                          data=json.dumps(payload),
+                          headers=self.headers)
+        if r.status_code == 201:
+            print "\n".join("%s: %s" % (i, r.json[obj][i])
+                            for i in self.__getattribute__('%s_cols' % obj))
+        else:
+            print "Unable to create %s: %s" % (obj.title(), r.json['message'])
+
     def cmd_node_list(self, args):
         '''List all nodes.
         Positional Arguments: NONE
@@ -73,14 +83,7 @@ class TestApp(cliapp.Application):
         '''
         config = None if (len(args) < 2) else args[1]
         data = {'hostname': args[0], 'config': config}
-        r = requests.post(self.urls['node'],
-                          data=json.dumps(data),
-                          headers=self.headers)
-        if r.status_code == 201:
-            print "\n".join("%s: %s" % (i, r.json['node'][i])
-                            for i in self.node_cols)
-        else:
-            print "Unable to create node: %s" % r.json['message']
+        self._create_obj('node', data)
 
     def cmd_node_delete(self, args):
         '''Delete a node.
@@ -175,14 +178,7 @@ class TestApp(cliapp.Application):
         '''
         config = None if (len(args) < 3) else args[2]
         data = {'name': args[0], "description": args[1], 'config': config}
-        r = requests.post(self.urls['cluster'],
-                          data=json.dumps(data),
-                          headers=self.headers)
-        if r.status_code == 201:
-            print "\n".join("%s: %s" % (i, r.json['cluster'][i])
-                            for i in self.cluster_cols)
-        else:
-            print "Unable to create cluster: %s" % r.json['message']
+        self._create_obj('cluster', data)
 
     def cmd_cluster_delete(self, args):
         '''Delete a cluster.
@@ -226,6 +222,48 @@ class TestApp(cliapp.Application):
     def cmd_task_update(self, args):
         '''Not Implemented'''
         pass
+
+    # Convience functions for ron
+    def cmd_cluster(self, args):
+        '''Provides shortcuts to long-name commands:
+           .... create -> cluster-create
+
+           .... list -> cluster-list
+
+           .... get -> cluster-get
+
+           .... delete -> cluster-delete
+
+           .... update -> cluster-update
+        '''
+        options = {'create': self.cmd_cluster_create,
+                   'list': self.cmd_cluster_list,
+                   'get': self.cmd_cluster_get,
+                   'delete': self.cmd_cluster_delete,
+                   'update': self.cmd_cluster_update}
+        cmd = args.pop(0)
+        options[cmd](args)
+
+    # Convience functions for ron
+    def cmd_node(self, args):
+        '''Provides shortcuts to long-name commands:
+           .... create -> node-create
+
+           .... list -> node-list
+
+           .... get -> node-get
+
+           .... delete -> node-delete
+
+           .... update -> node-update
+        '''
+        options = {'create': self.cmd_node_create,
+                   'list': self.cmd_node_list,
+                   'get': self.cmd_node_get,
+                   'delete': self.cmd_node_delete,
+                   'update': self.cmd_node_update}
+        cmd = args.pop(0)
+        options[cmd](args)
 
 if __name__ == '__main__':
     app = TestApp(version='0.0.1')
