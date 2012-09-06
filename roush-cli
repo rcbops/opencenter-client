@@ -1,0 +1,86 @@
+#!/usr/bin/env python
+
+import cliapp
+import json
+import logging
+import requests
+from pprint import pprint
+
+class TestApp(cliapp.Application):
+    def add_settings(self):
+        self.settings.string(['api_endpoint'], 'URI for Roush Endpoint',             
+                        default='http://0.0.0.0:8080')
+        self.settings.load_configs()
+        self.node_url = self.settings['api_endpoint'] + '/nodes/'
+        self.headers = {'content-type': 'application/json'}
+        self.node_cols = ['id', 'hostname', 'cluster_id', 'role_id', 'config']
+
+    def cmd_node_list(self, args):
+        r = requests.get(self.node_url)
+        out = list()
+        for node in r.json['nodes']:
+            print "\n".join("%s: %s" % (i, node[i])
+                            for i in self.node_cols)
+            print ""
+
+    def cmd_node_create(self, args):
+        config = None if (len(args) < 2) else args[1]
+        data = {'hostname': args[0], 'config': config}
+        r = requests.post(self.node_url,
+                          data=json.dumps(data),
+                          headers=self.headers)
+        if r.status_code == 201:
+            print "\n".join("%s: %s" % (i, r.json['node'][i])
+                            for i in self.node_cols)
+        else:
+            print "Unable to create node: %s" % r.json['message']
+
+    def cmd_node_delete(self, args):
+        ''' Delete a Node from Roush.
+            Expected Inputs: <node_id>
+        '''
+        node_id = args[0]
+        r = requests.delete(self.node_url + node_id)
+        if r.status_code == 200:
+            print "Node %s deleted" % node_id
+        else:
+            print "Unable to delete node: %s" % node_id
+        
+    def cmd_node_update(self, args):
+        '''Expected Inputs: foo, bar, meh
+        '''
+        config = None if (len(args) < 2) else args[1]
+        data = {'config': config}
+        r = requests.put(self.node_url + args[0],
+                         data=json.dumps(data),
+                         headers=self.headers)
+        if r.status_code == 200:
+            print "\n".join("%s: %s" % (i, r.json[i])
+                            for i in self.node_cols)
+        else:
+            pprint(r)
+            # print "Unable to update node: %s" % r.json['message']
+
+    def cmd_role_list(self, args):
+        print 'Role List: %s' %args
+    def cmd_role_create(self, args):
+        print 'Role Create: %s' %args
+    def cmd_role_delete(self, args):
+        print 'Role Delete: %s' %args
+    def cmd_role_update(self, args):
+        print 'Role Update: %s' %args
+
+    def cmd_cluster_list(self, args):
+        print 'Cluster List: %s' %args
+    def cmd_cluster_create(self, args):
+        print 'Cluster Create: %s' %args
+    def cmd_cluster_delete(self, args):
+        print 'Cluster Delete: %s' %args
+    def cmd_cluster_update(self, args):
+        print 'Cluster Update: %s' %args
+
+
+if __name__ == '__main__':
+    app = TestApp(version='0.0.1')
+    app.settings.config_files = ['local.conf']
+    app.run()
