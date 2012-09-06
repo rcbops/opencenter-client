@@ -19,6 +19,8 @@ class TestApp(cliapp.Application):
         self.headers = {'content-type': 'application/json'}
         self.node_cols = ['id', 'hostname', 'cluster_id', 'role_id', 'config']
         self.cluster_cols = ['id', 'name', 'description', 'config']
+        self.task_cols = ['id', 'node_id', 'action', 'payload', 'state', 'result',
+                          'submitted', 'expires', 'completed']
 
     def _list_obj(self, obj):
         r = requests.get(self.urls[obj])
@@ -211,16 +213,46 @@ class TestApp(cliapp.Application):
         self._get_obj(task_id, 'task')
 
     def cmd_task_create(self, args):
-        '''Not Implemented'''
-        pass
+        '''Create a task.
+           Positional Arguments: <node_id> <action> <payload> <state>
+        '''
+        if len(args) < 4:
+            print "Not enough arguments. Required arguments are " \
+                  "<node_id> <action> <payload> <state>"
+        else:
+            node_id = args[0]
+            action = args[1]
+            payload = args[2]
+            state = args[3]
+            data = {'node_id': node_id, 'action': action, 'payload': payload,
+                    'state': state}
+            self._create_obj('task', data)
 
-    def cmd_task_delete(self, args):
-        '''Not Implemented '''
-        pass
+#    def cmd_task_delete(self, args):
+#        '''Not Implemented: WONT FIX'''
+#        pass
 
-    def cmd_task_update(self, args):
-        '''Not Implemented'''
-        pass
+    def cmd_task_update_state(self, args):
+        '''Update the state of a task.
+           Positional Arguments: <task_id> <state>
+        '''
+        task_id = args[0]
+        state = args[1]
+        data = {'state': state}
+        self._update_obj(task_id, 'task', data)
+
+    def cmd_task_update_result(self, args):
+        '''Update the state of a task.
+           Positional Arguments: <task_id> <result>
+        '''
+        task_id = args[0]
+        result = args[1]
+        data = {'result': result}
+        self._update_obj(task_id, 'task', data)
+
+#    def cmd_task_update(self, args):
+#        '''Not Implemented: WONT FIX'''
+#        pass
 
     # Convience functions for ron
     def cmd_cluster(self, args):
@@ -261,6 +293,21 @@ class TestApp(cliapp.Application):
                    'get': self.cmd_node_get,
                    'delete': self.cmd_node_delete,
                    'update': self.cmd_node_update}
+        cmd = args.pop(0)
+        options[cmd](args)
+
+    # Convience functions for ron
+    def cmd_task(self, args):
+        '''Provides shortcuts to long-name commands:
+           .... create -> task-create
+
+           .... list -> task-list
+
+           .... get -> task-get
+        '''
+        options = {'create': self.cmd_task_create,
+                   'list': self.cmd_task_list,
+                   'get': self.cmd_task_get}
         cmd = args.pop(0)
         options[cmd](args)
 
