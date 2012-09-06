@@ -109,20 +109,17 @@ class TestApp(cliapp.Application):
         role_id = args[0]
         self._get_obj(role_id, 'role')
 
-    def cmd_role_create(self, args):
-        '''Not Implemented'''
-        pass
-
-    def cmd_role_delete(self, args):
-        '''Delete a role.
-        Positional Arguments: <role_id>
-        '''
-        role_id = args[0]
-        self._delete_obj(role_id, 'role')
-
-    def cmd_role_update(self, args):
-        '''Not Implemented'''
-        pass
+#    def cmd_role_create(self, args):
+#        '''Not Implemented: WONT FIX'''
+#        pass
+#
+#    def cmd_role_delete(self, args):
+#        '''Not Implemented: WONT FIX'''
+#        pass
+#
+#    def cmd_role_update(self, args):
+#        '''Not Implemented: WONT FIX'''
+#        pass
 
 
     def cmd_cluster_list(self, args):
