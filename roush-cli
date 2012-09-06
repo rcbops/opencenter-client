@@ -18,6 +18,7 @@ class TestApp(cliapp.Application):
                      "task": self.settings['api_endpoint'] + '/tasks/'}
         self.headers = {'content-type': 'application/json'}
         self.node_cols = ['id', 'hostname', 'cluster_id', 'role_id', 'config']
+        self.cluster_cols = ['id', 'name', 'description', 'config']
 
     def _list_obj(self, obj):
         r = requests.get(self.urls[obj])
@@ -42,6 +43,16 @@ class TestApp(cliapp.Application):
                             for i in self.__getattribute__('%s_cols' % obj))
         else:
             print "%s %s does not exist" % (obj.title(), obj_id)
+
+    def _update_obj(self, obj_id, obj, payload):
+        r = requests.put(self.urls[obj] + obj_id,
+                         data=json.dumps(payload),
+                         headers=self.headers)
+        if r.status_code == 200:
+            print "\n".join("%s: %s" % (i, r.json[i])                           
+                            for i in self.__getattribute__('%s_cols' % obj))
+        else:
+            print "Unable to update %s %s" % (obj.title(), obj_id)
 
     def cmd_node_list(self, args):
         '''List all nodes.
@@ -85,16 +96,39 @@ class TestApp(cliapp.Application):
         node_id = args[0]
         config = None if (len(args) < 2) else args[1]
         data = {'config': config}
-        r = requests.put(self.urls['node'] + node_id,
-                         data=json.dumps(data),
+        self._update_obj(node_id, 'node', data)
+
+    def cmd_node_update_role(self, args):
+        '''Assign a node to a role.
+        Positional Arguments: <node_id> <role_id>
+        '''
+        node_id = args[0]
+        role_id = args[1]
+        data = {'role_id': role_id}
+        self._update_obj(node_id, 'node', data)
+
+    def cmd_node_update_cluster(self, args):
+        '''Assign a node to a cluster.
+        Positional Arguments: <node_id> <cluster_id>
+        '''
+        node_id = args[0]
+        cluster_id = args[1]
+        data = {'cluster_id': cluster_id}
+        self._update_obj(node_id, 'node', data)
+
+    def cmd_node_task_list(self, args):
+        '''List the tasks for a node.
+        Positional Arguments: <node_id>
+        '''
+        node_id = args[0]
+        r = requests.get(self.urls['node'] + node_id + '/tasks/',
                          headers=self.headers)
         if r.status_code == 200:
-            print "\n".join("%s: %s" % (i, r.json[i])
-                            for i in self.node_cols)
-        else:
+            #TODO(shep): .doit
             pprint(r)
-            # print "Unable to update node: %s" % r.json['message']
-
+        else:
+            print "No tasks assigned to node %s" % (node_id)
+        pass
 
     def cmd_role_list(self, args):
         '''List all roles.
@@ -136,8 +170,19 @@ class TestApp(cliapp.Application):
         self._get_obj(cluster_id, 'cluster')
 
     def cmd_cluster_create(self, args):
-        '''Not Implemented'''
-        pass
+        '''Create a Node entry.
+        Positional Arguments: <name> <description> <config>
+        '''
+        config = None if (len(args) < 3) else args[2]
+        data = {'name': args[0], "description": args[1], 'config': config}
+        r = requests.post(self.urls['cluster'],
+                          data=json.dumps(data),
+                          headers=self.headers)
+        if r.status_code == 201:
+            print "\n".join("%s: %s" % (i, r.json['cluster'][i])
+                            for i in self.cluster_cols)
+        else:
+            print "Unable to create cluster: %s" % r.json['message']
 
     def cmd_cluster_delete(self, args):
         '''Delete a cluster.
@@ -147,9 +192,15 @@ class TestApp(cliapp.Application):
         self._delete_obj(cluster_id, 'cluster')
 
     def cmd_cluster_update(self, args):
-        '''Not Implemented'''
-        pass
-
+        '''Update a clusters attributes.
+        Positional Arguments: <cluster_id> <description> <config>
+        '''
+        #FIXME(shep): This needs validation badly
+        cluster_id = args[0]
+        desc = args[1]
+        config = None if (len(args) < 3) else args[2]
+        data = {'description': desc, 'config': config}
+        self._update_obj(cluster_id, 'cluster', data)
 
     def cmd_task_list(self, args):
         '''List all tasks.
