@@ -339,6 +339,5 @@ class RoushCLI(cliapp.Application):
 
 def main():
     app = RoushCLI(version='1.0.0')
-    app.settings.config_files = ['/etc/roush/client_settings.conf',
-                                 '~/.roush_clientrc']
+    app.settings.config_files = ['~/.roushrc']
     app.run()
