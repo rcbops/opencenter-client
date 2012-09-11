@@ -9,7 +9,7 @@ import time
 from pprint import pprint
 
 
-class TestApp(cliapp.Application):
+class RoushCLI(cliapp.Application):
     def add_settings(self):
         self.settings.string(['api_endpoint'], 'URI for Roush Endpoint',
                              default='http://0.0.0.0:8080')
@@ -73,64 +73,64 @@ class TestApp(cliapp.Application):
             print "Unable to create %s: %s" % (obj.title(), r.json['message'])
 
     def cmd_node_list(self, args):
-        '''List all nodes.
+        """List all nodes.
         Positional Arguments: NONE
-        '''
+        """
         self._list_obj('node')
 
     def cmd_node_get(self, args):
-        '''Get the details for a node.
+        """Get the details for a node.
         Positional Arguments: <node_id>
-        '''
+        """
         node_id = args[0]
         self._get_obj(node_id, 'node')
 
     def cmd_node_create(self, args):
-        '''Create a Node entry.
+        """Create a Node entry.
         Positional Arguments: <hostname> <config>
-        '''
+        """
         config = None if (len(args) < 2) else args[1]
         data = {'hostname': args[0], 'config': config}
         self._create_obj('node', data)
 
     def cmd_node_delete(self, args):
-        '''Delete a node.
+        """Delete a node.
         Positional Arguments: <node_id>
-        '''
+        """
         node_id = args[0]
         self._delete_obj(node_id, 'node')
 
     def cmd_node_update(self, args):
-        '''Create a Node entry.
+        """Create a Node entry.
         Positional Arguments: <node_id> <config>
-        '''
+        """
         node_id = args[0]
         config = None if (len(args) < 2) else args[1]
         data = {'config': config}
         self._update_obj(node_id, 'node', data)
 
     def cmd_node_update_role(self, args):
-        '''Assign a node to a role.
+        """Assign a node to a role.
         Positional Arguments: <node_id> <role_id>
-        '''
+        """
         node_id = args[0]
         role_id = args[1]
         data = {'role_id': role_id}
         self._update_obj(node_id, 'node', data)
 
     def cmd_node_update_cluster(self, args):
-        '''Assign a node to a cluster.
+        """Assign a node to a cluster.
         Positional Arguments: <node_id> <cluster_id>
-        '''
+        """
         node_id = args[0]
         cluster_id = args[1]
         data = {'cluster_id': cluster_id}
         self._update_obj(node_id, 'node', data)
 
     def cmd_node_task_list(self, args):
-        '''List the tasks for a node.
+        """List the tasks for a node.
         Positional Arguments: <node_id>
-        '''
+        """
         node_id = args[0]
         r = requests.get(self.urls['node'] + node_id + '/tasks/',
                          headers=self.headers)
@@ -142,62 +142,62 @@ class TestApp(cliapp.Application):
         pass
 
     def cmd_role_list(self, args):
-        '''List all roles.
+        """List all roles.
         Positional Arguments: NONE
-        '''
+        """
         self._list_obj('role')
 
     def cmd_role_get(self, args):
-        '''Get the details for a role.
+        """Get the details for a role.
         Positional Arguments: <role_id>
-        '''
+        """
         role_id = args[0]
         self._get_obj(role_id, 'role')
 
 #    def cmd_role_create(self, args):
-#        '''Not Implemented: WONT FIX'''
+#        """Not Implemented: WONT FIX"""
 #        pass
 #
 #    def cmd_role_delete(self, args):
-#        '''Not Implemented: WONT FIX'''
+#        """Not Implemented: WONT FIX"""
 #        pass
 #
 #    def cmd_role_update(self, args):
-#        '''Not Implemented: WONT FIX'''
+#        """Not Implemented: WONT FIX"""
 #        pass
 
     def cmd_cluster_list(self, args):
-        '''List all clusters.
+        """List all clusters.
         Positional Arguments: NONE
-        '''
+        """
         self._list_obj('cluster')
 
     def cmd_cluster_get(self, args):
-        '''Get the details for a cluster.
+        """Get the details for a cluster.
         Positional Arguments: <cluster_id>
-        '''
+        """
         cluster_id = args[0]
         self._get_obj(cluster_id, 'cluster')
 
     def cmd_cluster_create(self, args):
-        '''Create a Node entry.
+        """Create a Node entry.
         Positional Arguments: <name> <description> <config>
-        '''
+        """
         config = None if (len(args) < 3) else args[2]
         data = {'name': args[0], "description": args[1], 'config': config}
         self._create_obj('cluster', data)
 
     def cmd_cluster_delete(self, args):
-        '''Delete a cluster.
+        """Delete a cluster.
         Positional Arguments: <cluster_id>
-        '''
+        """
         cluster_id = args[0]
         self._delete_obj(cluster_id, 'cluster')
 
     def cmd_cluster_update(self, args):
-        '''Update a clusters attributes.
+        """Update a clusters attributes.
         Positional Arguments: <cluster_id> <description> <config>
-        '''
+        """
         #FIXME(shep): This needs validation badly
         cluster_id = args[0]
         desc = args[1]
@@ -206,22 +206,22 @@ class TestApp(cliapp.Application):
         self._update_obj(cluster_id, 'cluster', data)
 
     def cmd_task_list(self, args):
-        '''List all tasks.
+        """List all tasks.
         Positional Arguments: NONE
-        '''
+        """
         self._list_obj('task')
 
     def cmd_task_get(self, args):
-        '''Get the details for a task.
+        """Get the details for a task.
         Positional Arguments: <task_id>
-        '''
+        """
         task_id = args[0]
         self._get_obj(task_id, 'task')
 
     def cmd_task_create(self, args):
-        '''Create a task.
+        """Create a task.
            Positional Arguments: <node_id> <action> <payload> <state>
-        '''
+        """
         if len(args) < 4:
             print "Not enough arguments. Required arguments are " \
                   "<node_id> <action> <payload> <state>"
@@ -255,34 +255,34 @@ class TestApp(cliapp.Application):
             
 
 #    def cmd_task_delete(self, args):
-#        '''Not Implemented: WONT FIX'''
+#        """Not Implemented: WONT FIX"""
 #        pass
 
     def cmd_task_update_state(self, args):
-        '''Update the state of a task.
+        """Update the state of a task.
            Positional Arguments: <task_id> <state>
-        '''
+        """
         task_id = args[0]
         state = args[1]
         data = {'state': state}
         self._update_obj(task_id, 'task', data)
 
     def cmd_task_update_result(self, args):
-        '''Update the state of a task.
+        """Update the state of a task.
            Positional Arguments: <task_id> <result>
-        '''
+        """
         task_id = args[0]
         result = args[1]
         data = {'result': result}
         self._update_obj(task_id, 'task', data)
 
 #    def cmd_task_update(self, args):
-#        '''Not Implemented: WONT FIX'''
+#        """Not Implemented: WONT FIX"""
 #        pass
 
     # Convience functions for ron
     def cmd_cluster(self, args):
-        '''Provides shortcuts to long-name commands:
+        """Provides shortcuts to long-name commands:
            .... create -> cluster-create
 
            .... list -> cluster-list
@@ -292,7 +292,7 @@ class TestApp(cliapp.Application):
            .... delete -> cluster-delete
 
            .... update -> cluster-update
-        '''
+        """
         options = {'create': self.cmd_cluster_create,
                    'list': self.cmd_cluster_list,
                    'get': self.cmd_cluster_get,
@@ -303,7 +303,7 @@ class TestApp(cliapp.Application):
 
     # Convience functions for ron
     def cmd_node(self, args):
-        '''Provides shortcuts to long-name commands:
+        """Provides shortcuts to long-name commands:
            .... create -> node-create
 
            .... list -> node-list
@@ -313,7 +313,7 @@ class TestApp(cliapp.Application):
            .... delete -> node-delete
 
            .... update -> node-update
-        '''
+        """
         options = {'create': self.cmd_node_create,
                    'list': self.cmd_node_list,
                    'get': self.cmd_node_get,
@@ -324,20 +324,21 @@ class TestApp(cliapp.Application):
 
     # Convience functions for ron
     def cmd_task(self, args):
-        '''Provides shortcuts to long-name commands:
+        """Provides shortcuts to long-name commands:
            .... create -> task-create
 
            .... list -> task-list
 
            .... get -> task-get
-        '''
+        """
         options = {'create': self.cmd_task_create,
                    'list': self.cmd_task_list,
                    'get': self.cmd_task_get}
         cmd = args.pop(0)
         options[cmd](args)
 
-if __name__ == '__main__':
-    app = TestApp(version='0.0.1')
-    app.settings.config_files = ['local.conf']
+def main():
+    app = RoushCLI(version='1.0.0')
+    app.settings.config_files = ['/etc/roush/client_settings.conf',
+                                 '~/.roush_clientrc']
     app.run()
