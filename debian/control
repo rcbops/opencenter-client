@@ -1,0 +1,24 @@
+Source: roush-client
+Section: net
+Priority: optional
+Maintainer: Ron Pedde <ron@pedde.com>
+Build-Depends: debhelper (>= 7.0.50~),
+ python-all,
+ python-support (>= 0.90),
+ python-setuptools,
+ python-requests,
+ python-cliapp
+Standards-Version: 3.9.1
+XS-Python-Version: >= 2.6
+Homepage: https://github.com/galstrom21/roush-agent
+XCBS-RCB-Component: rcb-utils
+
+Package: roush-client
+Architecture: all
+Section: python
+Depends: ${python:Depends}, ${misc:Depends},
+ python-setuptools,
+ python-requests,
+ python-cliapp
+Provides: ${python:Provides}
+Description: command line client for roush server
