@@ -2,7 +2,7 @@
 
 from setuptools import setup, find_packages
 
-requirements = ['python-cliapp', 'requests']
+requirements = ['cliapp', 'requests']
 
 setup(name='roush-client',
       version='1.0.0',
