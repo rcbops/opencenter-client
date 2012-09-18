@@ -30,7 +30,6 @@ def pluralize(noun, irregular_nouns={'deer': 'deer'}, vowels='aeiou'):
             return noun + 'es'
     finally:
         pass
-
     return noun + 's'
 
 
@@ -68,7 +67,7 @@ class LazyDict:
                                             for x in self.dict.values()] +
                                            [len(field.replace('_id', '')) + 1])
 
-            # field_lens = dict([(k,len(k) + 1) for k in field_list])
+            # field_lens = dict([(k, len(k) + 1) for k in field_list])
             output_str = ''
             for k in field_list:
                 output_str += ("%%-%ds|" % (field_lens[k],)) % (
@@ -91,7 +90,6 @@ class LazyDict:
             value.id = key
             if value._request_get():
                 self.dict[key] = value
-                print value
             else:
                 value = None
             return value
@@ -110,6 +108,7 @@ class LazyDict:
                              headers={'content-type': 'application/json'})
 
             # FIXME: look the class up in locals
+            print r.json
             for item in r.json[pluralize(self.object_type)]:
                 obj = roush_types[self.object_type](endpoint=self.endpoint)
                 obj._set(item)
@@ -166,8 +165,8 @@ class RoushObject(object):
         self.object_type = object_type
         self.endpoint = endpoint
         self.attributes = {}
-        self.friendly_field = 'id'
-        self.field_types = {}
+        self._friendly_field = 'id'
+        self._field_types = {}
         self.synthesized_fields = {}
 
     def __getattr__(self, name):
@@ -186,8 +185,8 @@ class RoushObject(object):
         if name in self.__dict__ or name in ['attributes',
                                              'endpoint',
                                              'object_type',
-                                             'friendly_field',
-                                             'field_types',
+                                             '_friendly_field',
+                                             '_field_types',
                                              'synthesized_fields']:
             object.__setattr__(self, name, value)
         else:
@@ -195,7 +194,7 @@ class RoushObject(object):
 
     def _cross_object(self, field):
         try:
-            v = self.attributes[field]
+            v = getattr(self, field)
         except KeyError:
             raise AttributeError("'Roush%s' object has no attribute '%s'" % (
                 self.object_type.capitalize(), field))
@@ -221,7 +220,7 @@ class RoushObject(object):
             return ''
 
     def _printable_cols(self):
-        types = self._field_types()
+        types = self._field_types
         if types:
             field_list = [x for x in self.attributes.keys()
                            if not x in types or types[x] != 'json']
@@ -235,7 +234,7 @@ class RoushObject(object):
         return field_list
 
     def col_format(self, widths=None, separator=' '):
-        types = self._field_types()
+        types = self._field_types
         out_str = ''
         printable_cols = self._printable_cols()
 
@@ -250,28 +249,21 @@ class RoushObject(object):
         return out_str
 
     def _resolved_value(self, key):
-        if key.endswith('_id') and self.attributes[key]:
-            v = self.attributes[key]
+        if key.endswith('_id') and hasattr(self, key):
+            v = getattr(self, key)
             cross_object = self._cross_object(key)
             if cross_object:
                 cross_lookup = 'unknown (%d)' % v
                 try:
-                    cross_lookup = cross_object.__getattr__(
-                        cross_object._friendly_field())
-                except:
+                    cross_lookup = getattr(cross_object, 
+                                           cross_object._friendly_field)
+                except AttributeError:
                     pass
                 return cross_lookup
-
         return self.attributes[key]
 
     def __str__(self):
         return self.row_format()
-
-    def _friendly_field(self):
-        return self.friendly_field
-
-    def _field_types(self):
-        return self.field_types
 
     def _url_for(self):
         url = urlparse.urljoin(self.endpoint.endpoint,
@@ -349,8 +341,8 @@ class RoushObject(object):
 class RoushCluster(RoushObject):
     def __init__(self, **kwargs):
         super(RoushCluster, self).__init__('cluster', **kwargs)
-        self.friendly_field = 'name'
-        self.fields_types = {'config': 'json'}
+        self._friendly_field = 'name'
+        self._field_types = {'config': 'json'}
         self.synthesized_fields = {'nodes': lambda: self._nodes()}
 
     def _nodes(self):
@@ -366,20 +358,20 @@ class RoushCluster(RoushObject):
 class RoushRole(RoushObject):
     def __init__(self, **kwargs):
         super(RoushRole, self).__init__('role', **kwargs)
-        self.friendly_field = 'name'
+        self._friendly_field = 'name'
 
 
 class RoushNode(RoushObject):
     def __init__(self, **kwargs):
         super(RoushNode, self).__init__('node', **kwargs)
-        self.friendly_field = 'hostname'
-        self.field_types = {'config': 'json'}
+        self._friendly_field = 'hostname'
+        self._field_types = {'config': 'json'}
 
 
 class RoushTask(RoushObject):
     def __init__(self, **kwargs):
         super(RoushTask, self).__init__('task', **kwargs)
-        self.field_types = {'payload': 'json'}
+        self._field_types = {'payload': 'json'}
 
 
 roush_types = {'node': RoushNode,
