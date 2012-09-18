@@ -42,8 +42,12 @@ class LazyDict:
 
     def __iter__(self):
         self._refresh()
-        for k in self.dict.keys():
-            yield k
+        for k, v in self.dict.iteritems():
+            yield v
+
+    def iteritems(self):
+        self._refresh()
+        return self.dict.iteritems()
 
     def items(self):
         self._refresh()
@@ -59,13 +63,12 @@ class LazyDict:
         else:
             representative_node = self.dict[self.dict.keys()[0]]
             field_list = representative_node._printable_cols()
-
             field_lens = {}
 
             for field in field_list:
                 field_lens[field] = max([len(str(x._resolved_value(field))) + 1
-                                            for x in self.dict.values()] +
-                                           [len(field.replace('_id', '')) + 1])
+                                         for x in self.dict.values()] +
+                                        [len(field.replace('_id', '')) + 1])
 
             # field_lens = dict([(k, len(k) + 1) for k in field_list])
             output_str = ''
@@ -78,9 +81,9 @@ class LazyDict:
                 output_str += ('-' * field_lens[k]) + '|'
             output_str += '\n'
 
-            for k in self.dict.keys():
-                output_str += self.dict[k].col_format(separator='|',
-                                                      widths=field_lens) + '\n'
+            for k, v in self.dict.iteritems():
+                output_str += v.col_format(separator='|',
+                                           widths=field_lens) + '\n'
 
             return output_str
 
@@ -91,7 +94,8 @@ class LazyDict:
             if value._request_get():
                 self.dict[key] = value
             else:
-                value = None
+                raise KeyError("Roush%s id '%s' not found" % 
+                               (self.object_type.capitalize(), key))
             return value
         else:
             return self.dict[key]
@@ -107,13 +111,20 @@ class LazyDict:
                                               pluralize(self.object_type)),
                              headers={'content-type': 'application/json'})
 
-            # FIXME: look the class up in locals
             for item in r.json[pluralize(self.object_type)]:
                 obj = roush_types[self.object_type](endpoint=self.endpoint)
-                obj._set(item)
+                obj.attributes = item
                 self.dict[obj.id] = obj
-
             self.refreshed = True
+
+    def cached_keys(self):
+        return self.dict.keys()
+
+    def cached_values(self):
+        return self.dict.values()
+
+    def cached_items(self):
+        return self.dict.items()
 
     def keys(self):
         self._refresh()
@@ -265,33 +276,24 @@ class RoushObject(object):
         return self.row_format()
 
     def _url_for(self):
-        url = urlparse.urljoin(self.endpoint.endpoint,
+        url = urlparse.urljoin(self.endpoint.endpoint + '/',
                                pluralize(self.object_type) + '/')
         if 'id' in self.attributes:
             url = urlparse.urljoin(url, str(self.attributes['id']))
         return url
 
-    def _set(self, attributes):
-        # set base attributes
-        self.attributes = attributes
-
-    def as_hash(self):
-        return self.attributes
-
     def save(self):
         # post or put, based on whether or not we have an ID field
-        if not 'id' in self.attributes:
+        if not hasattr(self, 'id'):
             self._request_post()
         else:
             self._request_put()
-
         self.endpoint._refresh(pluralize(self.object_type))
 
     def delete(self):
         # -XDELETE, raises if no id
-        if not 'id' in self.attributes:
-            raise ValueError
-
+        if not hasattr(self, 'id'):
+            raise ValueError("No id specified")
         self._request_delete()
 
     def _request(self, request_type, **kwargs):
@@ -299,7 +301,7 @@ class RoushObject(object):
 
         try:
             if self.object_type in r.json:
-                self._set(r.json[self.object_type])
+                self.attributes = r.json[self.object_type]
         finally:
             pass
 
@@ -315,9 +317,7 @@ class RoushObject(object):
                      url=None):
         if not url:
             url = self._url_for()
-
         fn = getattr(requests, request_type)
-
         if payload:
             payload = json.dumps(payload)
         r = fn(url, data=payload, headers=headers)
