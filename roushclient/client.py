@@ -7,7 +7,6 @@ import sys
 
 
 def pluralize(noun, irregular_nouns={'deer': 'deer'}, vowels='aeiou'):
-
     if not noun:
         return ''
 
@@ -50,8 +49,8 @@ class LazyDict:
     def items(self):
         self._refresh()
         result = []
-        for k,v in self.dict.iteritems():
-            result.append((k,v))
+        for k, v in self.dict.iteritems():
+            result.append((k, v))
         return result
 
     def __str__(self):
@@ -62,23 +61,27 @@ class LazyDict:
             representative_node = self.dict[self.dict.keys()[0]]
             field_list = representative_node._printable_cols()
 
-            field_lengths = {}
+            field_lens = {}
 
             for field in field_list:
-                field_lengths[field] = max([len(str(x._resolved_value(field)))+1 for x in self.dict.values()] + [len(field.replace('_id',''))+1])
+                field_lens[field] = max([len(str(x._resolved_value(field))) + 1
+                                            for x in self.dict.values()] +
+                                           [len(field.replace('_id', '')) + 1])
 
-            # field_lengths = dict([(k,len(k) + 1) for k in field_list])
+            # field_lens = dict([(k,len(k) + 1) for k in field_list])
             output_str = ''
             for k in field_list:
-                output_str += ("%%-%ds|" % (field_lengths[k],)) % k.replace('_id', '')
+                output_str += ("%%-%ds|" % (field_lens[k],)) % (
+                    k.replace('_id', ''),)
             output_str += '\n'
 
             for k in field_list:
-                output_str += ('-' * field_lengths[k]) + '|'
+                output_str += ('-' * field_lens[k]) + '|'
             output_str += '\n'
 
             for k in self.dict.keys():
-                output_str += self.dict[k].col_format(separator='|', widths=field_lengths) + '\n'
+                output_str += self.dict[k].col_format(separator='|',
+                                                      widths=field_lens) + '\n'
 
             return output_str
 
@@ -87,7 +90,8 @@ class LazyDict:
             value = {'node': RoushNode,
                      'role': RoushRole,
                      'cluster': RoushCluster,
-                     'task': RoushTask}[self.object_type](endpoint=self.endpoint)
+                     'task': RoushTask}[self.object_type](
+                         endpoint=self.endpoint)
 
             value.id = key
             if value._request_get():
@@ -101,18 +105,21 @@ class LazyDict:
     def __setitem__(self, key, value):
         self.dict[key] = value
 
-    def _refresh(self, force = False):
+    def _refresh(self, force=False):
         if (not self.refreshed) or force:
             self.dict = {}
 
-            r = requests.get(urlparse.urljoin(self.endpoint.endpoint, pluralize(self.object_type)), headers={'content-type': 'application/json'})
+            r = requests.get(urlparse.urljoin(self.endpoint.endpoint,
+                                              pluralize(self.object_type)),
+                             headers={'content-type': 'application/json'})
 
             # FIXME: look the class up in locals
             for item in r.json[pluralize(self.object_type)]:
                 obj = {'node': RoushNode,
                        'role': RoushRole,
                        'cluster': RoushCluster,
-                       'task': RoushTask}[self.object_type](endpoint=self.endpoint)
+                       'task': RoushTask}[self.object_type](
+                           endpoint=self.endpoint)
                 obj._set(item)
                 self.dict[obj.id] = obj
 
@@ -126,6 +133,7 @@ class LazyDict:
         self._refresh()
         return self.dict.values()
 
+
 class RoushEndpoint:
     def __init__(self, endpoint='http://localhost:8080'):
         self.endpoint = endpoint
@@ -136,7 +144,8 @@ class RoushEndpoint:
 
     def __getattr__(self, name):
         if not name in self.object_lists:
-            raise AttributeError("'RoushEndpoint' has no attribute '%s'" % name)
+            raise AttributeError("'RoushEndpoint' has no attribute '%s'" %
+                                 name)
         else:
             if not self.object_lists[name]:
                 self._refresh(name)
@@ -159,7 +168,9 @@ class RoushEndpoint:
 
 
 class RoushObject(object):
-    def __init__(self, object_type=None, endpoint=RoushEndpoint('http://localhost:8080')):
+    def __init__(self,
+                 object_type=None,
+                 endpoint=RoushEndpoint('http://localhost:8080')):
         self.object_type = object_type
         self.endpoint = endpoint
         self.attributes = {}
@@ -172,13 +183,19 @@ class RoushObject(object):
                 return self._cross_object(name + '_id')
             elif name in self.synthesized_fields:
                 return self.synthesized_fields[name]()
-            raise AttributeError("'Roush%s' object has no attribute '%s'" % (self.object_type.capitalize(), name))
+            raise AttributeError("'Roush%s' object has no attribute '%s'" % (
+                self.object_type.capitalize(), name))
         return self.attributes[name]
 
     def __setattr__(self, name, value):
         # print "setting %s => %s" % (str(name), str(value))
 
-        if name in self.__dict__ or name in ['attributes', 'endpoint', 'object_type', 'friendly_field', 'field_types', 'synthesized_fields']:
+        if name in self.__dict__ or name in ['attributes',
+                                             'endpoint',
+                                             'object_type',
+                                             'friendly_field',
+                                             'field_types',
+                                             'synthesized_fields']:
             object.__setattr__(self, name, value)
         else:
             self.__dict__['attributes'][name] = value
@@ -187,7 +204,8 @@ class RoushObject(object):
         v = self.attributes[field]
         if field.endswith('_id') and v:
             cross_table = field.replace('_id', '')
-            cross_object = self.endpoint.object_lists[pluralize(cross_table)][int(v)]
+            cross_object = self.endpoint.object_lists[pluralize(cross_table)][
+                int(v)]
             return cross_object
         return None
 
@@ -199,7 +217,7 @@ class RoushObject(object):
             for k in self.attributes:
                 v = self._resolved_value(k)
 
-                out_str += out_fmt % (k.replace('_id',''),v) + '\n'
+                out_str += out_fmt % (k.replace('_id', ''), v) + '\n'
 
             return out_str
         else:
@@ -208,7 +226,8 @@ class RoushObject(object):
     def _printable_cols(self):
         types = self._field_types()
         if types:
-            field_list = [ x for x in self.attributes.keys() if not x in types or types[x] != 'json' ]
+            field_list = [x for x in self.attributes.keys()
+                           if not x in types or types[x] != 'json']
         else:
             field_list = self.attributes.keys()
 
@@ -240,7 +259,8 @@ class RoushObject(object):
             if cross_object:
                 cross_lookup = 'unknown (%d)' % v
                 try:
-                    cross_lookup = cross_object.__getattr__(cross_object._friendly_field())
+                    cross_lookup = cross_object.__getattr__(
+                        cross_object._friendly_field())
                 except:
                     pass
                 return cross_lookup
@@ -257,7 +277,8 @@ class RoushObject(object):
         return self.field_types
 
     def _url_for(self):
-        url = urlparse.urljoin(self.endpoint.endpoint, pluralize(self.object_type) + '/')
+        url = urlparse.urljoin(self.endpoint.endpoint,
+                               pluralize(self.object_type) + '/')
         if 'id' in self.attributes:
             url = urlparse.urljoin(url, str(self.attributes['id']))
         return url
@@ -299,7 +320,11 @@ class RoushObject(object):
         else:
             return False
 
-    def _raw_request(self, request_type, payload=None, headers={'content-type': 'application/json'}, url=None):
+    def _raw_request(self,
+                     request_type,
+                     payload=None,
+                     headers={'content-type': 'application/json'},
+                     url=None):
         if not url:
             url = self._url_for()
 
@@ -328,16 +353,18 @@ class RoushCluster(RoushObject):
     def __init__(self, **kwargs):
         super(RoushCluster, self).__init__('cluster', **kwargs)
         self.friendly_field = 'name'
-        self.fields_types = { 'config': 'json' }
+        self.fields_types = {'config': 'json'}
         self.synthesized_fields = {'nodes': lambda: self._nodes()}
 
     def _nodes(self):
         url = urlparse.urljoin(self._url_for() + '/', 'nodes')
         r = self._raw_request('get', url=url)
         if r.status_code < 300 and r.status_code > 199:
-            return [self.endpoint.object_lists['nodes'][x['id']] for x in r.json['nodes']]
+            return [self.endpoint.object_lists['nodes'][x['id']]
+                    for x in r.json['nodes']]
         else:
             return []
+
 
 class RoushRole(RoushObject):
     def __init__(self, **kwargs):
@@ -348,13 +375,14 @@ class RoushRole(RoushObject):
 class RoushNode(RoushObject):
     def __init__(self, **kwargs):
         super(RoushNode, self).__init__('node', **kwargs)
-        self.friendly_field  = 'hostname'
-        self.field_types = { 'config': 'json' }
+        self.friendly_field = 'hostname'
+        self.field_types = {'config': 'json'}
+
 
 class RoushTask(RoushObject):
     def __init__(self, **kwargs):
         super(RoushTask, self).__init__('task', **kwargs)
-        self.field_types = { 'payload': 'json' }
+        self.field_types = {'payload': 'json'}
 
 if __name__ == '__main__':
     ep = RoushEndpoint('http://localhost:8080')
