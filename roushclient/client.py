@@ -108,7 +108,6 @@ class LazyDict:
                              headers={'content-type': 'application/json'})
 
             # FIXME: look the class up in locals
-            print r.json
             for item in r.json[pluralize(self.object_type)]:
                 obj = roush_types[self.object_type](endpoint=self.endpoint)
                 obj._set(item)
@@ -321,7 +320,6 @@ class RoushObject(object):
 
         if payload:
             payload = json.dumps(payload)
-
         r = fn(url, data=payload, headers=headers)
         return r
 
@@ -332,7 +330,7 @@ class RoushObject(object):
         return self._request('post', payload=self.attributes)
 
     def _request_get(self):
-        return self._request('get', payload=self.attributes)
+        return self._request('get')
 
     def _request_delete(self):
         return self._request('delete')
