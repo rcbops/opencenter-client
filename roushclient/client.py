@@ -87,15 +87,11 @@ class LazyDict:
 
     def __getitem__(self, key):
         if not key in self.dict:
-            value = {'node': RoushNode,
-                     'role': RoushRole,
-                     'cluster': RoushCluster,
-                     'task': RoushTask}[self.object_type](
-                         endpoint=self.endpoint)
-
+            value = roush_types[self.object_type](endpoint=self.endpoint)
             value.id = key
             if value._request_get():
                 self.dict[key] = value
+                print value
             else:
                 value = None
             return value
@@ -115,11 +111,7 @@ class LazyDict:
 
             # FIXME: look the class up in locals
             for item in r.json[pluralize(self.object_type)]:
-                obj = {'node': RoushNode,
-                       'role': RoushRole,
-                       'cluster': RoushCluster,
-                       'task': RoushTask}[self.object_type](
-                           endpoint=self.endpoint)
+                obj = roush_types[self.object_type](endpoint=self.endpoint)
                 obj._set(item)
                 self.dict[obj.id] = obj
 
@@ -176,10 +168,11 @@ class RoushObject(object):
         self.attributes = {}
         self.friendly_field = 'id'
         self.field_types = {}
+        self.synthesized_fields = {}
 
     def __getattr__(self, name):
-        if not name in self.attributes.keys():
-            if name + '_id' in self.attributes.keys():
+        if not name in self.__dict__['attributes']:
+            if name + '_id' in self.__dict__['attributes']:
                 return self._cross_object(name + '_id')
             elif name in self.synthesized_fields:
                 return self.synthesized_fields[name]()
@@ -201,7 +194,11 @@ class RoushObject(object):
             self.__dict__['attributes'][name] = value
 
     def _cross_object(self, field):
-        v = self.attributes[field]
+        try:
+            v = self.attributes[field]
+        except KeyError:
+            raise AttributeError("'Roush%s' object has no attribute '%s'" % (
+                self.object_type.capitalize(), field))
         if field.endswith('_id') and v:
             cross_table = field.replace('_id', '')
             cross_object = self.endpoint.object_lists[pluralize(cross_table)][
@@ -383,6 +380,13 @@ class RoushTask(RoushObject):
     def __init__(self, **kwargs):
         super(RoushTask, self).__init__('task', **kwargs)
         self.field_types = {'payload': 'json'}
+
+
+roush_types = {'node': RoushNode,
+               'role': RoushRole,
+               'cluster': RoushCluster,
+               'task': RoushTask}
+
 
 if __name__ == '__main__':
     ep = RoushEndpoint('http://localhost:8080')
