@@ -6,10 +6,7 @@ import json
 import sys
 
 
-def pluralize(noun):
-    # in case we don't use regular nouns!
-    vowels = 'aeiou'
-    irregular_nouns = {'deer': 'deer'}
+def pluralize(noun, irregular_nouns={'deer': 'deer'}, vowels='aeiou'):
 
     if not noun:
         return ''
