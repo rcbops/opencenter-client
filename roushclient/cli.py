@@ -46,7 +46,7 @@ class RoushCLI(cliapp.Application):
         r = requests.get(self.urls[obj] + obj_id,
                          headers=self.headers)
         if r.status_code == 200:
-            print "\n".join("%s: %s" % (i, r.json[i])
+            print "\n".join("%s: %s" % (i, r.json[obj][i])
                             for i in self.__getattribute__('%s_cols' % obj))
         else:
             print "%s %s does not exist" % (obj.title(), obj_id)
@@ -234,7 +234,7 @@ class RoushCLI(cliapp.Application):
                     'state': state}
             task_id = str(self._create_obj('task', data))
         if self.settings['poll']:
-            # keep checking on the status of the created task until it 
+            # keep checking on the status of the created task until it
             # is complete
             print "\n--waiting for task to complete--"
             complete = False
@@ -243,7 +243,7 @@ class RoushCLI(cliapp.Application):
                 count += 1
                 # do something
                 r = requests.get(self.urls['task'] + task_id)
-                if r.json['state'] == 'done':
+                if r.json['task']['state'] == 'done':
                     complete = True
                     sys.stdout.write('\n--task completed--\n\n')
                     sys.stdout.flush()
@@ -252,7 +252,7 @@ class RoushCLI(cliapp.Application):
                     sys.stdout.write('\r8%sD' % ('=' * count,))
                     sys.stdout.flush()
                     time.sleep(3)
-            
+
 
 #    def cmd_task_delete(self, args):
 #        """Not Implemented: WONT FIX"""
