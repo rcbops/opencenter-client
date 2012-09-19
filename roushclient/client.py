@@ -307,6 +307,8 @@ class RoushObject(object):
         try:
             if self.object_type in r.json:
                 self.attributes = r.json[self.object_type]
+        except:
+            pass
         finally:
             pass
 
