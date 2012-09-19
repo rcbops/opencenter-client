@@ -94,7 +94,7 @@ class LazyDict:
             if value._request_get():
                 self.dict[key] = value
             else:
-                raise KeyError("Roush%s id '%s' not found" % 
+                raise KeyError("Roush%s id '%s' not found" %
                                (self.object_type.capitalize(), key))
             return value
         else:
@@ -205,7 +205,7 @@ class RoushObject(object):
     def _cross_object(self, field):
         try:
             v = getattr(self, field)
-        except KeyError:
+        except AttributeError:
             raise AttributeError("'Roush%s' object has no attribute '%s'" % (
                 self.object_type.capitalize(), field))
         if field.endswith('_id') and v:
@@ -261,13 +261,18 @@ class RoushObject(object):
     def _resolved_value(self, key):
         if key.endswith('_id') and hasattr(self, key):
             v = getattr(self, key)
-            cross_object = self._cross_object(key)
+            cross_lookup = 'unknown (%s)' % v
+
+            try:
+                cross_object = self._cross_object(key)
+            except KeyError:
+                return cross_lookup
+
             if cross_object:
-                cross_lookup = 'unknown (%d)' % v
                 try:
-                    cross_lookup = getattr(cross_object, 
+                    cross_lookup = getattr(cross_object,
                                            cross_object._friendly_field)
-                except AttributeError:
+                except KeyError:
                     pass
                 return cross_lookup
         return self.attributes[key]
