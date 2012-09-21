@@ -89,7 +89,12 @@ class LazyDict:
 
     def __getitem__(self, key):
         if not key in self.dict:
-            value = roush_types[self.object_type](endpoint=self.endpoint)
+            type_class = "Roush%s" % self.object_type.capitalize()
+            if type_class in globals():
+                value = globals()[type_class](endpoint=self.endpoint)
+            else:
+                raise RuntimeError('Cannot find class %s' % type_class)
+
             value.id = key
             if value._request_get():
                 self.dict[key] = value
@@ -112,7 +117,13 @@ class LazyDict:
                              headers={'content-type': 'application/json'})
 
             for item in r.json[pluralize(self.object_type)]:
-                obj = roush_types[self.object_type](endpoint=self.endpoint)
+                type_class = "Roush%s" % self.object_type.capitalize()
+                if type_class in globals():
+                    obj = globals()[type_class](endpoint=self.endpoint)
+                else:
+                    # can we synthesize this class?!?
+                    raise RuntimeError('Cannot find class %s' % type_class)
+
                 obj.attributes = item
                 self.dict[obj.id] = obj
             self.refreshed = True
@@ -377,12 +388,6 @@ class RoushTask(RoushObject):
     def __init__(self, **kwargs):
         super(RoushTask, self).__init__('task', **kwargs)
         self._field_types = {'payload': 'json'}
-
-
-roush_types = {'node': RoushNode,
-               'role': RoushRole,
-               'cluster': RoushCluster,
-               'task': RoushTask}
 
 
 if __name__ == '__main__':
