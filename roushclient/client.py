@@ -6,6 +6,7 @@ import json
 import sys
 
 
+
 def pluralize(noun, irregular_nouns={'deer': 'deer'}, vowels='aeiou'):
     if not noun:
         return ''
@@ -109,6 +110,9 @@ class LazyDict:
     def __setitem__(self, key, value):
         self.dict[key] = value
 
+    def filter(self, filter_string):
+        return LazyDict(self.object_type, self.endpoint, filter_string)
+
     def _refresh(self, force=False):
         if (not self.refreshed) or force:
             self.dict = {}
@@ -175,32 +179,30 @@ class RoushEndpoint:
     def _refresh(self, name):
         self.object_lists[name]._refresh()
 
-    def filter(self, object_type, filter_string):
-        return LazyDict(object_type, self, filter_string)
+    def Node(self, **kwargs):
+        return RoushNode(endpoint=self, **kwargs)
 
-    def Node(self):
-        return RoushNode(endpoint=self)
+    def Cluster(self, **kwargs):
+        return RoushCluster(endpoint=self, **kwargs)
 
-    def Cluster(self):
-        return RoushCluster(endpoint=self)
+    def Role(self, **kwargs):
+        return RoushRole(endpoint=self, **kwargs)
 
-    def Role(self):
-        return RoushRole(endpoint=self)
-
-    def Task(self):
-        return RoushTask(endpoint=self)
+    def Task(self, **kwargs):
+        return RoushTask(endpoint=self, **kwargs)
 
 
 class RoushObject(object):
     def __init__(self,
                  object_type=None,
-                 endpoint=RoushEndpoint('http://localhost:8080')):
+                 endpoint=RoushEndpoint('http://localhost:8080'), **kwargs):
         self.object_type = object_type
         self.endpoint = endpoint
         self.attributes = {}
         self._friendly_field = 'id'
         self._field_types = {}
         self.synthesized_fields = {}
+        self.attributes.update(kwargs)
 
     def __getattr__(self, name):
         if not name in self.__dict__['attributes']:
@@ -402,7 +404,29 @@ class RoushTask(RoushObject):
         self._field_types = {'payload': 'json'}
 
 
+class ClientApp:
+    def main(self, argv):
+        argv.pop(0)
+        uopts = [x for x in argv if not x.startswith('--')]
+        fopts = [x.replace('--','') for x in argv if x not in uopts]
+
+        payload=dict([x.split('=') for x in fopts])
+
+        (node_type, op), uopts = uopts[:2], uopts[2:]
+
+        ep = RoushEndpoint()
+
+        obj = ep.object_lists[pluralize(node_type)]
+
+        {'list': lambda: sys.stdout.write(str(obj) + '\n'),
+         'show': lambda: sys.stdout.write(str(obj[uopts.pop(0)]) + '\n'),
+         'delete': lambda: obj[uopts.pop(0)].delete(),
+         'create': lambda: getattr(ep,node_type.capitalize())(**payload).save(),
+         'update': lambda: getattr(ep,node_type.capitalize())(id=uopts.pop(0),**payload).save()}[op]()
+
+def main():
+    app = ClientApp()
+    app.main(sys.argv)
+
 if __name__ == '__main__':
-    ep = RoushEndpoint('http://localhost:8080')
-    for d in ep.nodes:
-        print d
+    main()

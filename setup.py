@@ -23,6 +23,7 @@ setup(name='roush-client',
       ],
       install_requires=requirements,
       entry_points={
-          'console_scripts': ['roush = roushclient.cli:main']
+          'console_scripts': ['roush = roushclient.cli:main',
+                              'r2 = roushclient.client:main' ]
       }
 )
