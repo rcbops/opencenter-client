@@ -34,11 +34,12 @@ def pluralize(noun, irregular_nouns={'deer': 'deer'}, vowels='aeiou'):
 
 
 class LazyDict:
-    def __init__(self, object_type, endpoint):
+    def __init__(self, object_type, endpoint, filter_string = None):
         self.endpoint = endpoint
         self.object_type = object_type
         self.dict = {}
         self.refreshed = False
+        self.filter_string = filter_string
 
     def __iter__(self):
         self._refresh()
@@ -111,10 +112,18 @@ class LazyDict:
     def _refresh(self, force=False):
         if (not self.refreshed) or force:
             self.dict = {}
+            base_endpoint = urlparse.urljoin(self.endpoint.endpoint,
+                                             pluralize(self.object_type)) + '/'
 
-            r = requests.get(urlparse.urljoin(self.endpoint.endpoint,
-                                              pluralize(self.object_type)),
-                             headers={'content-type': 'application/json'})
+            if self.filter_string:
+                r =requests.post(
+                    urlparse.urljoin(base_endpoint, 'filter'),
+                    headers={'content-type': 'application/json'},
+                    data=json.dumps({'filter': self.filter_string}))
+            else:
+                r = requests.get(
+                    base_endpoint,
+                    headers={'content-type': 'application/json'})
 
             for item in r.json[pluralize(self.object_type)]:
                 type_class = "Roush%s" % self.object_type.capitalize()
@@ -165,6 +174,9 @@ class RoushEndpoint:
 
     def _refresh(self, name):
         self.object_lists[name]._refresh()
+
+    def filter(self, object_type, filter_string):
+        return LazyDict(object_type, self, filter_string)
 
     def Node(self):
         return RoushNode(endpoint=self)
