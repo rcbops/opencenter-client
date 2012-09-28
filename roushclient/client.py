@@ -4,8 +4,15 @@ import requests
 import urlparse
 import json
 import sys
+import logging
 
 
+# this might be a trifle naive
+def singularize(noun):
+    if noun[-1] == 's':
+        return noun[:-1]
+
+    return noun[:-1]
 
 def pluralize(noun, irregular_nouns={'deer': 'deer'}, vowels='aeiou'):
     if not noun:
@@ -34,6 +41,32 @@ def pluralize(noun, irregular_nouns={'deer': 'deer'}, vowels='aeiou'):
     return noun + 's'
 
 
+class SchemaEntry:
+    def __init__(self, field_name, schema_entry):
+        self.field_name = field_name
+        self.schema_entry = schema_entry
+
+
+class ObjectSchema:
+    def __init__(self, endpoint, object_type):
+        # we should probably pass endpoints to each object
+        # type in the master schema, but we can assume they
+        # are regularized.
+        self.endpoint = endpoint
+        self.object_type = object_type
+        schema_uri = "%s/%s/schema" % (endpoint.endpoint,
+                                       pluralize(object_type))
+
+        r = requests.get(schema_uri,
+                         headers={'content-type': 'application/json'})
+        # if we can't get a schema, might as well
+        # just let the exception happen
+        self.field_schema = r.json['schema']
+        self.fields = {}
+        for k, v in self.field_schema.items():
+            self.fields[k] = SchemaEntry(k, v)
+
+
 class LazyDict:
     def __init__(self, object_type, endpoint, filter_string = None):
         self.endpoint = endpoint
@@ -41,6 +74,7 @@ class LazyDict:
         self.dict = {}
         self.refreshed = False
         self.filter_string = filter_string
+        self.schema = None
 
     def __iter__(self):
         self._refresh()
@@ -50,6 +84,27 @@ class LazyDict:
     def iteritems(self):
         self._refresh()
         return self.dict.iteritems()
+
+    def create(self, **kwargs):
+        return self.new(**kwargs)
+
+    def new(self, **kwargs):
+        obj = None
+
+        self._maybe_refresh_schema()
+
+        type_class = "Roush%s" % self.object_type.capitalize()
+        if type_class in globals():
+            obj = globals()[type_class](endpoint=self.endpoint, **kwargs)
+        else:
+            # we'll just assume it's a default type.
+            # we won't be able to do anything other
+            # than crud options, but that's better
+            # than nothing.
+            obj = RoushObject(object_type=self.object_type,
+                              endpoint=self.endpoint,
+                              **kwargs)
+        return obj
 
     def items(self):
         self._refresh()
@@ -113,14 +168,20 @@ class LazyDict:
     def filter(self, filter_string):
         return LazyDict(self.object_type, self.endpoint, filter_string)
 
+    def _maybe_refresh_schema(self):
+        if not self.schema:
+            self.schema = ObjectSchema(self.endpoint, self.object_type)
+
     def _refresh(self, force=False):
+        self._maybe_refresh_schema()
+
         if (not self.refreshed) or force:
             self.dict = {}
             base_endpoint = urlparse.urljoin(self.endpoint.endpoint,
                                              pluralize(self.object_type)) + '/'
 
             if self.filter_string:
-                r =requests.post(
+                r = requests.post(
                     urlparse.urljoin(base_endpoint, 'filter'),
                     headers={'content-type': 'application/json'},
                     data=json.dumps({'filter': self.filter_string}))
@@ -162,10 +223,17 @@ class LazyDict:
 class RoushEndpoint:
     def __init__(self, endpoint='http://localhost:8080'):
         self.endpoint = endpoint
-        self.object_lists = {'nodes': LazyDict('node', self),
-                             'clusters': LazyDict('cluster', self),
-                             'roles': LazyDict('role', self),
-                             'tasks': LazyDict('task', self)}
+        self.logger = logging.getLogger('roush.endpoint')
+
+        r = requests.get('%s/schema' % endpoint)
+        try:
+            self.master_schema = r.json['schema']
+            self.object_lists = {}
+            for obj_type in r.json['schema']['objects']:
+                self.object_lists[obj_type] = LazyDict(
+                    singularize(obj_type), self)
+        except:
+            raise AttributeError('Invalid endpoint - no /schema')
 
     def __getattr__(self, name):
         if not name in self.object_lists:
@@ -178,6 +246,9 @@ class RoushEndpoint:
 
     def _refresh(self, name):
         self.object_lists[name]._refresh()
+
+    def _invalidate(self, what, how):
+        self.logger.debug('invalidating %s on %s' % (what, how))
 
     def Node(self, **kwargs):
         return RoushNode(endpoint=self, **kwargs)
@@ -203,6 +274,7 @@ class RoushObject(object):
         self._field_types = {}
         self.synthesized_fields = {}
         self.attributes.update(kwargs)
+        self.logger = logging.getLogger('roush.%s' % object_type)
 
     def __getattr__(self, name):
         if not name in self.__dict__['attributes']:
@@ -222,7 +294,8 @@ class RoushObject(object):
                                              'object_type',
                                              '_friendly_field',
                                              '_field_types',
-                                             'synthesized_fields']:
+                                             'synthesized_fields',
+                                             'logger']:
             object.__setattr__(self, name, value)
         else:
             self.__dict__['attributes'][name] = value
@@ -338,8 +411,12 @@ class RoushObject(object):
             pass
 
         if r.status_code < 300 and r.status_code > 199:
+            self.endpoint._invalidate(self.object_type,
+                                      request_type)
             return True
         else:
+            self.logger.warn('status code %s on %s' % (
+                    r.status_code, request_type))
             return False
 
     def _raw_request(self,
