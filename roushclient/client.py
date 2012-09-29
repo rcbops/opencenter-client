@@ -6,7 +6,6 @@ import json
 import sys
 import logging
 
-
 # this might be a trifle naive
 def singularize(noun):
     if noun[-1] == 's':
@@ -46,6 +45,30 @@ class SchemaEntry:
         self.field_name = field_name
         self.schema_entry = schema_entry
 
+    def is_fk(self):
+        if 'fk' in self.schema_entry:
+            return True
+        return False
+
+    def fk(self):
+        return self.schema_entry['fk'].split('.')
+
+    def is_unique(self):
+        return self.schema_entry['unique']
+
+    def type(self):
+        if self.schema_entry['type'] == 'INTEGER':
+            return 'number'
+        elif self.schema_entry['type'] == 'TEXT':
+            # how can we distinguish json?
+            return 'text'
+        elif self.schema_entry['type'] == 'JSON':
+            return 'json'
+        elif self.schema_entry['type'].startswith('VARCHAR'):
+            return 'string'
+        else:
+            raise RuntimeError('unknown type "%s"' % self.schema_entry['type'])
+
 
 class ObjectSchema:
     def __init__(self, endpoint, object_type):
@@ -54,6 +77,9 @@ class ObjectSchema:
         # are regularized.
         self.endpoint = endpoint
         self.object_type = object_type
+        self.fk = {}
+        self.friendly_name = 'id'
+
         schema_uri = "%s/%s/schema" % (endpoint.endpoint,
                                        pluralize(object_type))
 
@@ -65,6 +91,39 @@ class ObjectSchema:
         self.fields = {}
         for k, v in self.field_schema.items():
             self.fields[k] = SchemaEntry(k, v)
+            if 'fk' in v:
+                table, fk = v['fk'].split('.')
+                if table in self.fk.keys():
+                    raise RuntimeError('multiple fk for %s' % table)
+
+                self.fk[table] = [k,fk]
+
+        # these should really be consistent
+        if 'name' in self.field_schema.keys():
+            self.friendly_name = 'name'
+        elif 'hostname' in self.field_schema.keys():
+            self.friendly_name = 'hostname'
+
+    def printable_cols(self):
+        field_list = [x for x in self.fields.keys()
+                      if self.fields[x].type() != 'json']
+        # move id to the front
+        if 'id' in field_list:
+            field_list.remove('id')
+            field_list.insert(0, 'id')
+
+        return field_list
+
+    def has_field(self, field_name):
+        return field_name in self.fields.keys()
+
+    def has_fk_for(self, table):
+        return table in self.fk
+
+    def fk_for(self, table):
+        if table in self.fk:
+            return self.fk[table]
+        return None
 
 
 class LazyDict:
@@ -75,6 +134,7 @@ class LazyDict:
         self.refreshed = False
         self.filter_string = filter_string
         self.schema = None
+        self.dirty = False
 
     def __iter__(self):
         self._refresh()
@@ -118,8 +178,8 @@ class LazyDict:
         if len(self.dict.keys()) == 0:
             return ''
         else:
-            representative_node = self.dict[self.dict.keys()[0]]
-            field_list = representative_node._printable_cols()
+            self._maybe_refresh_schema()
+            field_list = self.schema.printable_cols()
             field_lens = {}
 
             for field in field_list:
@@ -150,8 +210,9 @@ class LazyDict:
             if type_class in globals():
                 value = globals()[type_class](endpoint=self.endpoint)
             else:
-                raise RuntimeError('Cannot find class %s' % type_class)
-
+                # make a generic
+                value = RoushObject(object_type = self.object_type,
+                                    endpoint = self.endpoint)
             value.id = key
             if value._request_get():
                 self.dict[key] = value
@@ -160,7 +221,11 @@ class LazyDict:
                                (self.object_type.capitalize(), key))
             return value
         else:
-            return self.dict[key]
+            # if the table is dirty, refresh the entry
+            if self.dirty:
+                return self.dict[key]._request_get()
+            else:
+                return self.dict[key]
 
     def __setitem__(self, key, value):
         self.dict[key] = value
@@ -170,12 +235,14 @@ class LazyDict:
 
     def _maybe_refresh_schema(self):
         if not self.schema:
-            self.schema = ObjectSchema(self.endpoint, self.object_type)
+            self.schema = self.endpoint.get_schema(self.object_type)
 
     def _refresh(self, force=False):
         self._maybe_refresh_schema()
 
-        if (not self.refreshed) or force:
+        # if this table is marked as dirty, then it must refresh
+        # itself.
+        if (not self.refreshed) or (self.dirty) or force:
             self.dict = {}
             base_endpoint = urlparse.urljoin(self.endpoint.endpoint,
                                              pluralize(self.object_type)) + '/'
@@ -195,12 +262,14 @@ class LazyDict:
                 if type_class in globals():
                     obj = globals()[type_class](endpoint=self.endpoint)
                 else:
-                    # can we synthesize this class?!?
-                    raise RuntimeError('Cannot find class %s' % type_class)
+                    # fall back to generic
+                    obj = RoushObject(endpoint=self.endpoint,
+                                      object_type = self.object_type)
 
                 obj.attributes = item
                 self.dict[obj.id] = obj
             self.refreshed = True
+            self.dirty = False
 
     def cached_keys(self):
         return self.dict.keys()
@@ -224,127 +293,142 @@ class RoushEndpoint:
     def __init__(self, endpoint='http://localhost:8080'):
         self.endpoint = endpoint
         self.logger = logging.getLogger('roush.endpoint')
+        self.schemas = {}
 
         r = requests.get('%s/schema' % endpoint)
         try:
             self.master_schema = r.json['schema']
-            self.object_lists = {}
+            self._object_lists = {}
             for obj_type in r.json['schema']['objects']:
-                self.object_lists[obj_type] = LazyDict(
+                self._object_lists[obj_type] = LazyDict(
                     singularize(obj_type), self)
         except:
             raise AttributeError('Invalid endpoint - no /schema')
 
+    def __getitem__(self, name):
+        if name in self._object_lists:
+            return self._object_lists[name]
+        else:
+            raise KeyError(name)
+
     def __getattr__(self, name):
-        if not name in self.object_lists:
+        if not name in self._object_lists:
             raise AttributeError("'RoushEndpoint' has no attribute '%s'" %
                                  name)
         else:
-            if not self.object_lists[name]:
-                self._refresh(name)
-            return self.object_lists[name]
+            if not self._object_lists[name]:
+                self._refresh(name, 'list')
+            return self._object_lists[name]
 
-    def _refresh(self, name):
-        self.object_lists[name]._refresh()
+    def _refresh(self, what, why):
+        self.logger.debug('Refreshing %s for %s' % (what, why))
+        self._object_lists[what].dirty = True
 
     def _invalidate(self, what, how):
         self.logger.debug('invalidating %s on %s' % (what, how))
 
+    def get_schema(self, object_type):
+        if not object_type in self.schemas:
+            self.schemas[object_type] = ObjectSchema(self, object_type)
+        return self.schemas[object_type]
+
+    # These are all deprecated interfaces.  Should now
+    # use endpoint.nodes.create(), or endpoint.cluster.create(), etc.
+
     def Node(self, **kwargs):
-        return RoushNode(endpoint=self, **kwargs)
+        self.logger.debug('DEPRECATED: endpoint.Node()')
+        return RoushObject('node', self, **kwargs)
 
     def Cluster(self, **kwargs):
+        self.logger.debug('DEPRECATED: endpoint.Cluster()')
         return RoushCluster(endpoint=self, **kwargs)
 
     def Role(self, **kwargs):
-        return RoushRole(endpoint=self, **kwargs)
+        self.logger.debug('DEPRECATED: endpoint.Role()')
+        return RoushObject('role', self, **kwargs)
 
     def Task(self, **kwargs):
-        return RoushTask(endpoint=self, **kwargs)
+        self.logger.debug('DEPRECATED: endpoint.Task()')
+        return RoushObject('task', self, **kwargs)
 
 
 class RoushObject(object):
     def __init__(self,
                  object_type=None,
                  endpoint=RoushEndpoint('http://localhost:8080'), **kwargs):
+
+        # once the schema is set, we can figure out what are
+        # fields and what are regular attributes
+        object.__setattr__(self, 'schema', endpoint.get_schema(object_type))
+
+        # object.__setattr__(self, 'object_type', object_type)
+        # object.__setattr__(self, 'endpoint', endpoint)
+
         self.object_type = object_type
         self.endpoint = endpoint
+        # self.schema = endpoint.get_schema(object_type)
         self.attributes = {}
-        self._friendly_field = 'id'
-        self._field_types = {}
         self.synthesized_fields = {}
         self.attributes.update(kwargs)
         self.logger = logging.getLogger('roush.%s' % object_type)
 
     def __getattr__(self, name):
-        if not name in self.__dict__['attributes']:
-            if name + '_id' in self.__dict__['attributes']:
-                return self._cross_object(name + '_id')
-            elif name in self.synthesized_fields:
-                return self.synthesized_fields[name]()
-            raise AttributeError("'Roush%s' object has no attribute '%s'" % (
+        if self.schema.has_field(name):
+            if not name in self.__dict__['attributes']:
+                return None   # valid, but not set
+            return self.__dict__['attributes'][name]
+
+        # try looking up along fk
+        if self.schema.has_fk_for(name):
+            return self._cross_object(name)
+
+        # try synthesized fields
+        if name in self.synthesized_fields:
+            return self.synthesized_fields[name]()
+
+        # uh oh.
+        raise AttributeError("'Roush%s' object has no attribute '%s'" % (
                 self.object_type.capitalize(), name))
-        return self.attributes[name]
 
     def __setattr__(self, name, value):
         # print "setting %s => %s" % (str(name), str(value))
-
-        if name in self.__dict__ or name in ['attributes',
-                                             'endpoint',
-                                             'object_type',
-                                             '_friendly_field',
-                                             '_field_types',
-                                             'synthesized_fields',
-                                             'logger']:
+        if self.schema.has_field(name):
+            self.__dict__['attributes'][name] = value
+        elif name in ['attributes',
+                         'endpoint',
+                         'object_type',
+                         'synthesized_fields',
+                         'logger',
+                         'schema']:
             object.__setattr__(self, name, value)
         else:
-            self.__dict__['attributes'][name] = value
-
-    def _cross_object(self, field):
-        try:
-            v = getattr(self, field)
-        except AttributeError:
             raise AttributeError("'Roush%s' object has no attribute '%s'" % (
-                self.object_type.capitalize(), field))
-        if field.endswith('_id') and v:
-            cross_table = field.replace('_id', '')
-            cross_object = self.endpoint.object_lists[pluralize(cross_table)][
-                int(v)]
-            return cross_object
+                    self.object_type.capitalize(), name))
+
+    def _cross_object(self, foreign_table):
+        if self.schema.has_fk_for(foreign_table):
+            local_field, remote_field = self.schema.fk_for(foreign_table)
+
+            v = getattr(self, local_field)
+            if not v:
+                return None
+
+            return self.endpoint[pluralize(foreign_table)][int(v)]
         return None
 
     def row_format(self):
-        if self.attributes:
-            max_len = max(map(lambda x: len(x), self.attributes.keys()))
-            out_fmt = "%%-%ds: %%s" % max_len
-            out_str = ""
-            for k in self.attributes:
-                v = self._resolved_value(k)
+        max_len = max(map(lambda x: len(x), self.schema.fields.keys()))
+        out_fmt = "%%-%ds: %%s" % max_len
+        out_str = ""
+        for k in self.schema.fields.keys():
+            v = self._resolved_value(k)
+            out_str += out_fmt % (k.replace('_id', ''), v) + '\n'
 
-                out_str += out_fmt % (k.replace('_id', ''), v) + '\n'
-
-            return out_str
-        else:
-            return ''
-
-    def _printable_cols(self):
-        types = self._field_types
-        if types:
-            field_list = [x for x in self.attributes.keys()
-                           if not x in types or types[x] != 'json']
-        else:
-            field_list = self.attributes.keys()
-
-        if 'id' in field_list:
-            field_list.remove('id')
-            field_list.insert(0, 'id')
-
-        return field_list
+        return out_str
 
     def col_format(self, widths=None, separator=' '):
-        types = self._field_types
         out_str = ''
-        printable_cols = self._printable_cols()
+        printable_cols = self.schema.printable_cols()
 
         if self.attributes:
             for k in printable_cols:
@@ -357,23 +441,24 @@ class RoushObject(object):
         return out_str
 
     def _resolved_value(self, key):
-        if key.endswith('_id') and hasattr(self, key):
-            v = getattr(self, key)
-            cross_lookup = 'unknown (%s)' % v
+        if self.schema.fields[key].is_fk():
+            ctable, cfield = self.schema.fields[key].fk()
 
-            try:
-                cross_object = self._cross_object(key)
-            except KeyError:
-                return cross_lookup
+            v = getattr(self,key)
+            if not v:
+                return None
 
-            if cross_object:
-                try:
-                    cross_lookup = getattr(cross_object,
-                                           cross_object._friendly_field)
-                except KeyError:
-                    pass
-                return cross_lookup
-        return self.attributes[key]
+            cross_object = self._cross_object(ctable)
+
+            if not cross_object:
+                return 'bad fk (%s)' % v
+
+            return getattr(cross_object, self.schema.friendly_name)
+
+        if key in self.attributes:
+            return self.attributes[key]
+        else:
+            return None
 
     def __str__(self):
         return self.row_format()
@@ -387,11 +472,15 @@ class RoushObject(object):
 
     def save(self):
         # post or put, based on whether or not we have an ID field
-        if not hasattr(self, 'id'):
-            self._request_post()
+        action = 'none'
+
+        if getattr(self, 'id') == None:
+            action = 'post'
         else:
-            self._request_put()
-        self.endpoint._refresh(pluralize(self.object_type))
+            action = 'put'
+
+        getattr(self,'_request_%s' % action)()
+        self.endpoint._refresh(pluralize(self.object_type), action)
 
     def delete(self):
         # -XDELETE, raises if no id
@@ -445,40 +534,20 @@ class RoushObject(object):
         return self._request('delete')
 
 
+# this only exists to provide synthesized
 class RoushCluster(RoushObject):
     def __init__(self, **kwargs):
         super(RoushCluster, self).__init__('cluster', **kwargs)
-        self._friendly_field = 'name'
-        self._field_types = {'config': 'json'}
         self.synthesized_fields = {'nodes': lambda: self._nodes()}
 
     def _nodes(self):
         url = urlparse.urljoin(self._url_for() + '/', 'nodes')
         r = self._raw_request('get', url=url)
         if r.status_code < 300 and r.status_code > 199:
-            return [self.endpoint.object_lists['nodes'][x['id']]
+            return [self.endpoint['nodes'][x['id']]
                     for x in r.json['nodes']]
         else:
             return []
-
-
-class RoushRole(RoushObject):
-    def __init__(self, **kwargs):
-        super(RoushRole, self).__init__('role', **kwargs)
-        self._friendly_field = 'name'
-
-
-class RoushNode(RoushObject):
-    def __init__(self, **kwargs):
-        super(RoushNode, self).__init__('node', **kwargs)
-        self._friendly_field = 'hostname'
-        self._field_types = {'config': 'json'}
-
-
-class RoushTask(RoushObject):
-    def __init__(self, **kwargs):
-        super(RoushTask, self).__init__('task', **kwargs)
-        self._field_types = {'payload': 'json'}
 
 
 class ClientApp:
@@ -493,13 +562,13 @@ class ClientApp:
 
         ep = RoushEndpoint()
 
-        obj = ep.object_lists[pluralize(node_type)]
+        obj = ep[pluralize(node_type)]
 
         {'list': lambda: sys.stdout.write(str(obj) + '\n'),
          'show': lambda: sys.stdout.write(str(obj[uopts.pop(0)]) + '\n'),
          'delete': lambda: obj[uopts.pop(0)].delete(),
-         'create': lambda: getattr(ep,node_type.capitalize())(**payload).save(),
-         'update': lambda: getattr(ep,node_type.capitalize())(id=uopts.pop(0),**payload).save()}[op]()
+         'create': lambda: obj.new(**payload).save(),
+         'update': lambda: obj.new(id=uopts.pop(0),**payload).save()}[op]()
 
 def main():
     app = ClientApp()
