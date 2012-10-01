@@ -6,6 +6,14 @@ import json
 import sys
 import logging
 
+
+# monkey-patch requests
+def get_json(self):
+    return json.loads(self.content)
+
+if not hasattr(requests.Response, 'json'):
+    requests.Response.json = property(get_json)
+
 # this might be a trifle naive
 def singularize(noun):
     if noun[-1] == 's':
