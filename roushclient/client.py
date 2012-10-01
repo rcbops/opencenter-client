@@ -1,10 +1,12 @@
 #!/usr/bin/env python
 
-import requests
-import urlparse
 import json
-import sys
 import logging
+import os
+import sys
+import urlparse
+
+import requests
 
 
 # monkey-patch requests
@@ -298,12 +300,15 @@ class LazyDict:
 
 
 class RoushEndpoint:
-    def __init__(self, endpoint='http://localhost:8080'):
+    def __init__(self, endpoint=None):
         self.endpoint = endpoint
+        if not endpoint:
+            self.endpoint = os.environ.get('ROUSH_ENDPOINT', 'http://localhost:8080')
+
         self.logger = logging.getLogger('roush.endpoint')
         self.schemas = {}
 
-        r = requests.get('%s/schema' % endpoint)
+        r = requests.get('%s/schema' % self.endpoint)
         try:
             self.master_schema = r.json['schema']
             self._object_lists = {}
