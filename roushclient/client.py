@@ -147,6 +147,9 @@ class LazyDict:
         self.schema = None
         self.dirty = False
 
+    def __len__(self):
+        return len(self.dict)
+
     def __iter__(self):
         self._refresh()
         for k, v in self.dict.iteritems():
@@ -553,6 +556,14 @@ class RoushObject(object):
     def _request_delete(self):
         return self._request('delete')
 
+
+class RoushNode(RoushObject):
+    def __init__(self, **kwargs):
+        super(RoushNode, self).__init__('node', **kwargs)
+        self.synthesized_fields = {'tasks': lambda: self._tasks()}
+
+    def _tasks(self):
+        return self.endpoint['tasks'].filter('host_id=%d' % self.attributes['id'])
 
 # this only exists to provide synthesized
 class RoushCluster(RoushObject):
