@@ -560,10 +560,21 @@ class RoushObject(object):
 class RoushNode(RoushObject):
     def __init__(self, **kwargs):
         super(RoushNode, self).__init__('node', **kwargs)
-        self.synthesized_fields = {'tasks': lambda: self._tasks()}
+        self.synthesized_fields = {'tasks': lambda: self._tasks(),
+                                   'task': lambda: self._task()}
 
+    # return filtered list of all tasks
     def _tasks(self):
         return self.endpoint['tasks'].filter('host_id=%d' % self.attributes['id'])
+
+    # return next available task
+    def _task(self):
+        url = urlparse.urljoin(self._url_for() + '/', 'tasks')
+        r = self._raw_request('get', url=url)
+        if r.status_code < 300 and r.status_code > 199:
+            return self.endpoint['tasks'][int(r.json['task']['id'])]
+        return None
+
 
 # this only exists to provide synthesized
 class RoushCluster(RoushObject):
