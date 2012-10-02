@@ -571,7 +571,7 @@ class RoushCluster(RoushObject):
 
 class ClientApp:
     def main(self, argv):
-        logging.basicConfig(level=logging.DEBUG)
+        # logging.basicConfig(level=logging.DEBUG)
         argv.pop(0)
         uopts = [x for x in argv if not x.startswith('--')]
         fopts = [x.replace('--','') for x in argv if x not in uopts]
