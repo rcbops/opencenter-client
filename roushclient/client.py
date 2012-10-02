@@ -237,9 +237,8 @@ class LazyDict:
         else:
             # if the table is dirty, refresh the entry
             if self.dirty:
-                return self.dict[key]._request_get()
-            else:
-                return self.dict[key]
+                self.dict[key]._request_get()
+            return self.dict[key]
 
     def __setitem__(self, key, value):
         self.dict[key] = value
