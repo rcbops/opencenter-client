@@ -308,7 +308,13 @@ class RoushEndpoint:
         self.logger = logging.getLogger('roush.endpoint')
         self.schemas = {}
 
-        r = requests.get('%s/schema' % self.endpoint)
+        try:
+            r = requests.get('%s/schema' % self.endpoint)
+        except requests.exceptions.ConnectionError as e:
+            self.logger.error(str(e))
+            self.logger.error('Could not connect to endpoint %s/schema' % self.endpoint)
+            raise requests.exceptions.ConnectionError('could not connect to endpoint %s/schema' % self.endpoint)
+
         try:
             self.master_schema = r.json['schema']
             self._object_lists = {}
@@ -368,7 +374,7 @@ class RoushEndpoint:
 class RoushObject(object):
     def __init__(self,
                  object_type=None,
-                 endpoint=RoushEndpoint('http://localhost:8080'), **kwargs):
+                 endpoint=None, **kwargs):
 
         # once the schema is set, we can figure out what are
         # fields and what are regular attributes
@@ -426,7 +432,7 @@ class RoushObject(object):
             if not v:
                 return None
 
-            return self.endpoint[pluralize(foreign_table)][int(v)]
+            return self.endpoint[foreign_table][int(v)]
         return None
 
     def row_format(self):
@@ -466,7 +472,7 @@ class RoushObject(object):
             if not cross_object:
                 return 'bad fk (%s)' % v
 
-            return getattr(cross_object, self.schema.friendly_name)
+            return getattr(cross_object, cross_object.schema.friendly_name)
 
         if key in self.attributes:
             return self.attributes[key]
@@ -565,15 +571,21 @@ class RoushCluster(RoushObject):
 
 class ClientApp:
     def main(self, argv):
+        logging.basicConfig(level=logging.DEBUG)
         argv.pop(0)
         uopts = [x for x in argv if not x.startswith('--')]
         fopts = [x.replace('--','') for x in argv if x not in uopts]
 
         payload=dict([x.split('=') for x in fopts])
 
+        endpoint = None
+        if 'endpoint' in payload:
+            endpoint = payload['endpoint']
+            del payload['endpoint']
+
         (node_type, op), uopts = uopts[:2], uopts[2:]
 
-        ep = RoushEndpoint()
+        ep = RoushEndpoint(endpoint)
 
         obj = ep[pluralize(node_type)]
 
