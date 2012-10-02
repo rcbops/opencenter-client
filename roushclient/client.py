@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import code
 import json
 import logging
 import os
@@ -583,9 +584,13 @@ class ClientApp:
             endpoint = payload['endpoint']
             del payload['endpoint']
 
-        (node_type, op), uopts = uopts[:2], uopts[2:]
-
         ep = RoushEndpoint(endpoint)
+
+        if uopts[0] == 'shell':
+            code.interact(local=locals())
+            sys.exit(0)
+
+        (node_type, op), uopts = uopts[:2], uopts[2:]
 
         obj = ep[pluralize(node_type)]
 
