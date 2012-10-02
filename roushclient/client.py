@@ -439,6 +439,9 @@ class RoushObject(object):
             return self.endpoint[foreign_table][int(v)]
         return None
 
+    def to_hash(self):
+        return self.attributes
+
     def row_format(self):
         max_len = max(map(lambda x: len(x), self.schema.fields.keys()))
         out_fmt = "%%-%ds: %%s" % max_len
