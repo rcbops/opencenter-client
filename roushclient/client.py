@@ -616,10 +616,14 @@ class ClientApp:
 
         (node_type, op), uopts = uopts[:2], uopts[2:]
 
+        for opt in payload:
+            if payload[opt].startswith('@'):
+                payload[opt] = ' '.join(open(payload[opt][1:]).read().split('\n'))
+
         obj = ep[pluralize(node_type)]
 
         {'list': lambda: sys.stdout.write(str(obj) + '\n'),
-         'show': lambda: sys.stdout.write(str(obj[uopts.pop(0)]) + '\n'),
+         'show': lambda: sys.stdout.write(str(obj[int(uopts.pop(0))]) + '\n'),
          'delete': lambda: obj[uopts.pop(0)].delete(),
          'create': lambda: obj.new(**payload).save(),
          'schema': lambda: sys.stdout.write('\n'.join(['%-15s: %s' % (x.field_name, x.type()) for x in ep.get_schema(node_type).fields.values()]) + '\n'),
