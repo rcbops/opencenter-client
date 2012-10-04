@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import code
+import copy
 import json
 import logging
 import os
@@ -388,10 +389,12 @@ class RoushObject(object):
 
         self.object_type = object_type
         self.endpoint = endpoint
-        # self.schema = endpoint.get_schema(object_type)
         self.attributes = {}
         self.synthesized_fields = {}
-        self.attributes.update(kwargs)
+
+        for k, v in kwargs.items():
+            setattr(self, k, v)
+
         self.logger = logging.getLogger('roush.%s' % object_type)
 
     def __getattr__(self, name):
@@ -415,6 +418,9 @@ class RoushObject(object):
     def __setattr__(self, name, value):
         # print "setting %s => %s" % (str(name), str(value))
         if self.schema.has_field(name):
+            if self.schema.fields[name].type() == 'json':
+                if isinstance(value, str):   # SHOULD I BE DOING THIS?!?!?!
+                    value = json.loads(value)
             self.__dict__['attributes'][name] = value
         elif name in ['attributes',
                          'endpoint',
@@ -439,7 +445,10 @@ class RoushObject(object):
         return None
 
     def to_hash(self):
-        return self.attributes
+        return copy.deepcopy(self.__dict__['attributes'])
+
+    def to_dict(self):
+        return self.to_hash()
 
     def row_format(self):
         max_len = max(map(lambda x: len(x), self.schema.fields.keys()))
@@ -518,6 +527,7 @@ class RoushObject(object):
 
         try:
             if self.object_type in r.json:
+                self.logger.debug('got result back: %s' % r.json[self.object_type])
                 self.attributes = r.json[self.object_type]
         except:
             pass
@@ -543,6 +553,7 @@ class RoushObject(object):
         fn = getattr(requests, request_type)
         if payload:
             payload = json.dumps(payload)
+            self.logger.debug('Payload: %s' % (payload))
         r = fn(url, data=payload, headers=headers)
         return r
 
@@ -600,6 +611,10 @@ class ClientApp:
         argv.pop(0)
         uopts = [x for x in argv if not x.startswith('--')]
         fopts = [x.replace('--','') for x in argv if x not in uopts]
+
+        if 'debug' in fopts:
+            logging.basicConfig(level=logging.DEBUG)
+            fopts.remove('debug')
 
         payload=dict([x.split('=') for x in fopts])
 
