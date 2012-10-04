@@ -248,6 +248,13 @@ class LazyDict:
     def filter(self, filter_string):
         return LazyDict(self.object_type, self.endpoint, filter_string)
 
+    def first(self):
+        self._refresh()
+        if len(self.dict) == 0:
+            return None
+        else:
+            return self.dict[self.dict.keys().pop(0)]
+
     def _maybe_refresh_schema(self):
         if not self.schema:
             self.schema = self.endpoint.get_schema(self.object_type)
