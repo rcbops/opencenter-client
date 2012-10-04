@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import sys
+import traceback
 import urlparse
 
 import requests
@@ -647,7 +648,15 @@ class ClientApp:
 
 def main():
     app = ClientApp()
-    app.main(sys.argv)
+    try:
+        app.main(sys.argv)
+    except Exception, e:
+        print '\nError: %s' % str(e)
+        if logging.getLogger().isEnabledFor(logging.DEBUG):
+            print ''
+            traceback.print_exception(sys.exc_info())
+
+        sys.exit(1)
 
 if __name__ == '__main__':
     main()
