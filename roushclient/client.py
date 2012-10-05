@@ -661,7 +661,7 @@ def main():
         print '\nError: %s' % str(e)
         if logging.getLogger().isEnabledFor(logging.DEBUG):
             print ''
-            traceback.print_exception(sys.exc_info())
+            traceback.print_exc()
 
         sys.exit(1)
 
