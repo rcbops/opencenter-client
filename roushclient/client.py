@@ -626,14 +626,7 @@ class RoushCluster(RoushObject):
         self.synthesized_fields = {'nodes': lambda: self._nodes()}
 
     def _nodes(self):
-        url = urlparse.urljoin(self._url_for() + '/', 'nodes')
-        r = self._raw_request('get', url=url)
-        if r.status_code < 300 and r.status_code > 199:
-            return [self.endpoint['nodes'][x['id']]
-                    for x in r.json['nodes']]
-        else:
-            return []
-
+        return self.endpoint['nodes'].filter('cluster_id=%d' % self.attributes['id'])
 
 class ClientApp:
     def main(self, argv):
