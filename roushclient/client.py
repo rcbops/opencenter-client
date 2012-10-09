@@ -482,15 +482,16 @@ class RoushObject(object):
                 v = self._resolved_value(k)
 
                 format_str = "%s"
-                value = str(v)
+                value = str(v).strip()
 
+                maxlen = 99
                 if widths and k in widths:
+                    maxlen = widths[k]
                     if len(value) > widths[k]:
                         maxlen = widths[k] - 4
-                        value = value[:maxlen] + '... '
                     format_str = "%%-%ds" % widths[k]
 
-                out_str += (format_str + '%c') % (value, separator)
+                out_str += (format_str + '%c') % (value[:maxlen], separator)
         return out_str
 
     def _resolved_value(self, key):
