@@ -412,8 +412,8 @@ class RoushObject(object):
             return self.__dict__['attributes'][name]
 
         # try looking up along fk
-        if self.schema.has_fk_for(name):
-            return self._cross_object(name)
+        if self.schema.has_fk_for(pluralize(name)):
+            return self._cross_object(pluralize(name))
 
         # try synthesized fields
         if name in self.synthesized_fields:
@@ -422,6 +422,9 @@ class RoushObject(object):
         # uh oh.
         raise AttributeError("'Roush%s' object has no attribute '%s'" % (
                 self.object_type.capitalize(), name))
+
+    def __getitem__(self, name):
+        return self.__getattr__(name)
 
     def __setattr__(self, name, value):
         # print "setting %s => %s" % (str(name), str(value))
@@ -645,8 +648,10 @@ class ClientApp:
 
         obj = ep[pluralize(node_type)]
 
+        # reduce(lambda x, y: x[y], [ "a", "b", "c" ], { "a": { "b": { "c": 3}}})
+
         {'list': lambda: sys.stdout.write(str(obj) + '\n'),
-         'show': lambda: sys.stdout.write(str(obj[int(uopts.pop(0))]) + '\n'),
+         'show': lambda: sys.stdout.write(str(reduce(lambda x, y: x[y], uopts, obj)) + '\n'),
          'delete': lambda: obj[uopts.pop(0)].delete(),
          'create': lambda: obj.new(**payload).save(),
          'filter': lambda: sys.stdout.write(str(obj.filter(uopts.pop(0))) + '\n'),
