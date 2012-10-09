@@ -191,6 +191,7 @@ class LazyDict:
 
     def __str__(self):
         self._refresh()
+        max_width = 30
         if len(self.dict.keys()) == 0:
             return ''
         else:
@@ -202,6 +203,7 @@ class LazyDict:
                 field_lens[field] = max([len(str(x._resolved_value(field))) + 1
                                          for x in self.dict.values()] +
                                         [len(field.replace('_id', '')) + 1])
+                field_lens[field] = min([field_lens[field], max_width])
 
             # field_lens = dict([(k, len(k) + 1) for k in field_list])
             output_str = ''
@@ -480,9 +482,15 @@ class RoushObject(object):
                 v = self._resolved_value(k)
 
                 format_str = "%s"
+                value = str(v)
+
                 if widths and k in widths:
+                    if len(value) > widths[k]:
+                        maxlen = widths[k] - 4
+                        value = value[:maxlen] + '... '
                     format_str = "%%-%ds" % widths[k]
-                out_str += (format_str + '%c') % (str(v), separator)
+
+                out_str += (format_str + '%c') % (value, separator)
         return out_str
 
     def _resolved_value(self, key):
@@ -585,7 +593,8 @@ class RoushNode(RoushObject):
     def __init__(self, **kwargs):
         super(RoushNode, self).__init__('node', **kwargs)
         self.synthesized_fields = {'tasks': lambda: self._tasks(),
-                                   'task': lambda: self._task()}
+                                   'task': lambda: self._task(),
+                                   'adventures': lambda: self._adventures()}
 
     # return filtered list of all tasks
     def _tasks(self):
@@ -598,6 +607,16 @@ class RoushNode(RoushObject):
         if r.status_code < 300 and r.status_code > 199:
             return self.endpoint['tasks'][int(r.json['task']['id'])]
         return None
+
+    # return all available adventures
+    def _adventures(self):
+        url = urlparse.urljoin(self._url_for() + '/', 'adventures')
+        r = self._raw_request('get', url=url)
+        if r.status_code < 300 and r.status_code > 199:
+            adventure_list = map(lambda x: x['id'], r.json['adventures'])
+            if len(adventure_list) == 0:
+                return None
+            return self.endpoint['adventures'].filter(' or '.join( map(lambda x: '(id=%d)' % x, adventure_list)))
 
 
 # this only exists to provide synthesized
