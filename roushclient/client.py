@@ -547,10 +547,11 @@ class RoushObject(object):
         try:
             if self.object_type in r.json:
                 self.logger.debug('got result back: %s' % r.json[self.object_type])
+                self.logger.debug('got result code: %d' % r.status_code)
                 self.attributes = r.json[self.object_type]
+        except KeyboardInterrupt:
+            raise
         except:
-            pass
-        finally:
             pass
 
         if r.status_code < 300 and r.status_code > 199:
@@ -594,6 +595,7 @@ class RoushNode(RoushObject):
         super(RoushNode, self).__init__('node', **kwargs)
         self.synthesized_fields = {'tasks': lambda: self._tasks(),
                                    'task': lambda: self._task(),
+                                   'task_blocking': lambda: self._task(True),
                                    'adventures': lambda: self._adventures()}
 
     # return filtered list of all tasks
@@ -601,12 +603,16 @@ class RoushNode(RoushObject):
         return self.endpoint['tasks'].filter('host_id=%d' % self.attributes['id'])
 
     # return next available task
-    def _task(self):
+    def _task(self, blocking=False):
         url = urlparse.urljoin(self._url_for() + '/', 'tasks')
+        if blocking:
+            url += '_blocking'
+
         r = self._raw_request('get', url=url)
         if r.status_code < 300 and r.status_code > 199:
             return self.endpoint['tasks'][int(r.json['task']['id'])]
         return None
+
 
     # return all available adventures
     def _adventures(self):
