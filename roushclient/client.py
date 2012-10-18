@@ -645,7 +645,7 @@ class ClientApp:
             logging.basicConfig(level=logging.DEBUG)
             fopts.remove('debug')
 
-        payload=dict([x.split('=') for x in fopts])
+        payload=dict([x.split('=',1) for x in fopts])
 
         endpoint = None
         if 'endpoint' in payload:
