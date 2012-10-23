@@ -148,6 +148,7 @@ class LazyDict:
         self.filter_string = filter_string
         self.schema = None
         self.dirty = False
+        self.logger = logging.getLogger('roush.endpoint')
 
     def __len__(self):
         return len(self.dict)
@@ -276,6 +277,7 @@ class LazyDict:
                     urlparse.urljoin(base_endpoint, 'filter'),
                     headers={'content-type': 'application/json'},
                     data=json.dumps({'filter': self.filter_string}))
+                self.logger.debug('payload: %s' % {'filter': self.filter_string})
             else:
                 r = requests.get(
                     base_endpoint,
