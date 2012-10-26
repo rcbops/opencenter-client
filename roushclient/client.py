@@ -19,12 +19,14 @@ def get_json(self):
 if not hasattr(requests.Response, 'json'):
     requests.Response.json = property(get_json)
 
+
 # this might be a trifle naive
 def singularize(noun):
     if noun[-1] == 's':
         return noun[:-1]
 
     return noun[:-1]
+
 
 def pluralize(noun, irregular_nouns={'deer': 'deer'}, vowels='aeiou'):
     if not noun:
@@ -109,7 +111,7 @@ class ObjectSchema:
                 if table in self.fk.keys():
                     raise RuntimeError('multiple fk for %s' % table)
 
-                self.fk[table] = [k,fk]
+                self.fk[table] = [k, fk]
 
         # these should really be consistent
         if 'name' in self.field_schema.keys():
@@ -140,7 +142,7 @@ class ObjectSchema:
 
 
 class LazyDict:
-    def __init__(self, object_type, endpoint, filter_string = None):
+    def __init__(self, object_type, endpoint, filter_string=None):
         self.endpoint = endpoint
         self.object_type = object_type
         self.dict = {}
@@ -230,8 +232,8 @@ class LazyDict:
                 value = globals()[type_class](endpoint=self.endpoint)
             else:
                 # make a generic
-                value = RoushObject(object_type = self.object_type,
-                                    endpoint = self.endpoint)
+                value = RoushObject(object_type=self.object_type,
+                                    endpoint=self.endpoint)
             value.id = key
             if value._request_get():
                 self.dict[key] = value
@@ -277,7 +279,8 @@ class LazyDict:
                     urlparse.urljoin(base_endpoint, 'filter'),
                     headers={'content-type': 'application/json'},
                     data=json.dumps({'filter': self.filter_string}))
-                self.logger.debug('payload: %s' % {'filter': self.filter_string})
+                self.logger.debug('payload: %s' % (
+                    {'filter': self.filter_string}))
             else:
                 r = requests.get(
                     base_endpoint,
@@ -290,8 +293,7 @@ class LazyDict:
                 else:
                     # fall back to generic
                     obj = RoushObject(endpoint=self.endpoint,
-                                      object_type = self.object_type)
-
+                                      object_type=self.object_type)
                 obj.attributes = item
                 self.dict[obj.id] = obj
             self.refreshed = True
@@ -319,7 +321,8 @@ class RoushEndpoint:
     def __init__(self, endpoint=None):
         self.endpoint = endpoint
         if not endpoint:
-            self.endpoint = os.environ.get('ROUSH_ENDPOINT', 'http://localhost:8080')
+            self.endpoint = os.environ.get('ROUSH_ENDPOINT',
+                                           'http://localhost:8080')
 
         self.logger = logging.getLogger('roush.endpoint')
         self.schemas = {}
@@ -328,8 +331,10 @@ class RoushEndpoint:
             r = requests.get('%s/schema' % self.endpoint)
         except requests.exceptions.ConnectionError as e:
             self.logger.error(str(e))
-            self.logger.error('Could not connect to endpoint %s/schema' % self.endpoint)
-            raise requests.exceptions.ConnectionError('could not connect to endpoint %s/schema' % self.endpoint)
+            self.logger.error('Could not connect to endpoint %s/schema' % (
+                self.endpoint))
+            raise requests.exceptions.ConnectionError(
+                'could not connect to endpoint %s/schema' % self.endpoint)
 
         try:
             self.master_schema = r.json['schema']
@@ -499,7 +504,7 @@ class RoushObject(object):
         if self.schema.fields[key].is_fk():
             ctable, cfield = self.schema.fields[key].fk()
 
-            v = getattr(self,key)
+            v = getattr(self, key)
             if not v:
                 return None
 
@@ -529,12 +534,12 @@ class RoushObject(object):
         # post or put, based on whether or not we have an ID field
         action = 'none'
 
-        if getattr(self, 'id') == None:
+        if getattr(self, 'id') is None:
             action = 'post'
         else:
             action = 'put'
 
-        getattr(self,'_request_%s' % action)()
+        getattr(self, '_request_%s' % action)()
         self.endpoint._refresh(pluralize(self.object_type), action)
 
     def delete(self):
@@ -548,7 +553,8 @@ class RoushObject(object):
 
         try:
             if self.object_type in r.json:
-                self.logger.debug('got result back: %s' % r.json[self.object_type])
+                self.logger.debug('got result back: %s' % (
+                    r.json[self.object_type]))
                 self.logger.debug('got result code: %d' % r.status_code)
                 self.attributes = r.json[self.object_type]
         except KeyboardInterrupt:
@@ -602,7 +608,8 @@ class RoushNode(RoushObject):
 
     # return filtered list of all tasks
     def _tasks(self):
-        return self.endpoint['tasks'].filter('host_id=%d' % self.attributes['id'])
+        return self.endpoint['tasks'].filter('host_id=%d' % (
+            self.attributes['id']))
 
     # return next available task
     def _task(self, blocking=False):
@@ -615,7 +622,6 @@ class RoushNode(RoushObject):
             return self.endpoint['tasks'][int(r.json['task']['id'])]
         return None
 
-
     # return all available adventures
     def _adventures(self):
         url = urlparse.urljoin(self._url_for() + '/', 'adventures')
@@ -624,7 +630,8 @@ class RoushNode(RoushObject):
             adventure_list = map(lambda x: x['id'], r.json['adventures'])
             if len(adventure_list) == 0:
                 return None
-            return self.endpoint['adventures'].filter(' or '.join( map(lambda x: '(id=%d)' % x, adventure_list)))
+            return self.endpoint['adventures'].filter(' or '.join(
+                map(lambda x: '(id=%d)' % x, adventure_list)))
 
 
 # this only exists to provide synthesized
@@ -634,20 +641,22 @@ class RoushCluster(RoushObject):
         self.synthesized_fields = {'nodes': lambda: self._nodes()}
 
     def _nodes(self):
-        return self.endpoint['nodes'].filter('cluster_id=%d' % self.attributes['id'])
+        return self.endpoint['nodes'].filter('cluster_id=%d' % (
+            self.attributes['id']))
+
 
 class ClientApp:
     def main(self, argv):
         # logging.basicConfig(level=logging.DEBUG)
         argv.pop(0)
         uopts = [x for x in argv if not x.startswith('--')]
-        fopts = [x.replace('--','') for x in argv if x not in uopts]
+        fopts = [x.replace('--', '') for x in argv if x not in uopts]
 
         if 'debug' in fopts:
             logging.basicConfig(level=logging.DEBUG)
             fopts.remove('debug')
 
-        payload=dict([x.split('=',1) for x in fopts])
+        payload = dict([x.split('=', 1) for x in fopts])
 
         endpoint = None
         if 'endpoint' in payload:
@@ -664,19 +673,27 @@ class ClientApp:
 
         for opt in payload:
             if payload[opt].startswith('@'):
-                payload[opt] = ' '.join(open(payload[opt][1:]).read().split('\n'))
+                payload[opt] = ' '.join(open(payload[opt][1:]).read().split(
+                    '\n'))
 
         obj = ep[pluralize(node_type)]
 
-        # reduce(lambda x, y: x[y], [ "a", "b", "c" ], { "a": { "b": { "c": 3}}})
+        # reduce(lambda x, y: x[y], [ "a", "b", "c" ],
+        #     { "a": { "b": { "c": 3}}})
 
         {'list': lambda: sys.stdout.write(str(obj) + '\n'),
-         'show': lambda: sys.stdout.write(str(reduce(lambda x, y: x[y], uopts, obj)) + '\n'),
+         'show': lambda: sys.stdout.write(str(reduce(lambda x, y: x[y],
+                                                     uopts, obj)) + '\n'),
          'delete': lambda: obj[uopts.pop(0)].delete(),
          'create': lambda: obj.new(**payload).save(),
-         'filter': lambda: sys.stdout.write(str(obj.filter(uopts.pop(0))) + '\n'),
-         'schema': lambda: sys.stdout.write('\n'.join(['%-15s: %s' % (x.field_name, x.type()) for x in ep.get_schema(node_type).fields.values()]) + '\n'),
-         'update': lambda: obj.new(id=uopts.pop(0),**payload).save()}[op]()
+         'filter': lambda: sys.stdout.write(str(obj.filter(uopts.pop(0))) +
+                                            '\n'),
+         'schema': lambda: sys.stdout.write(
+             '\n'.join(['%-15s: %s' % (x.field_name, x.type())
+                        for x in ep.get_schema(node_type).fields.values()])
+             + '\n'),
+         'update': lambda: obj.new(id=uopts.pop(0), **payload).save()}[op]()
+
 
 def main():
     app = ClientApp()
