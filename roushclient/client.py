@@ -8,7 +8,7 @@ import os
 import sys
 import traceback
 import urlparse
-import requests as requests_lib
+import requests
 
 
 def _setup_requests(cert=None, roush_ca=None):
@@ -17,18 +17,15 @@ def _setup_requests(cert=None, roush_ca=None):
     if not roush_ca:
         roush_ca = os.environ.get('ROUSH_CA', roush_ca)
     verify = not roush_ca is None
-    return requests_lib.Session(cert=cert, verify=verify)
-
-global requests
-requests = _setup_requests()
+    return requests.Session(cert=cert, verify=verify)
 
 
 # monkey-patch requests
 def get_json(self):
     return json.loads(self.content)
 
-if not hasattr(requests_lib.Response, 'json'):
-    requests_lib.Response.json = property(get_json)
+if not hasattr(requests.Response, 'json'):
+    requests.Response.json = property(get_json)
 
 
 # this might be a trifle naive
@@ -341,11 +338,11 @@ class RoushEndpoint:
 
         try:
             r = self.requests.get('%s/schema' % self.endpoint)
-        except requests_lib.exceptions.ConnectionError as e:
+        except requests.exceptions.ConnectionError as e:
             self.logger.error(str(e))
             self.logger.error('Could not connect to endpoint %s/schema' % (
                 self.endpoint))
-            raise requests_lib.exceptions.ConnectionError(
+            raise requests.exceptions.ConnectionError(
                 'could not connect to endpoint %s/schema' % self.endpoint)
 
         try:
