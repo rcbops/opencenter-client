@@ -8,16 +8,27 @@ import os
 import sys
 import traceback
 import urlparse
+import requests as requests_lib
 
-import requests
+
+def _setup_requests(cert=None, roush_ca=None):
+    if not cert:
+        cert = os.environ.get('ROUSH_CERT', cert)
+    if not roush_ca:
+        roush_ca = os.environ.get('ROUSH_CA', roush_ca)
+    verify = not roush_ca is None
+    return requests_lib.Session(cert=cert, verify=verify)
+
+global requests
+requests = _setup_requests()
 
 
 # monkey-patch requests
 def get_json(self):
     return json.loads(self.content)
 
-if not hasattr(requests.Response, 'json'):
-    requests.Response.json = property(get_json)
+if not hasattr(requests_lib.Response, 'json'):
+    requests_lib.Response.json = property(get_json)
 
 
 # this might be a trifle naive
@@ -98,8 +109,8 @@ class ObjectSchema:
         schema_uri = "%s/%s/schema" % (endpoint.endpoint,
                                        pluralize(object_type))
 
-        r = requests.get(schema_uri,
-                         headers={'content-type': 'application/json'})
+        r = endpoint.requests.get(schema_uri,
+                                  headers={'content-type': 'application/json'})
         # if we can't get a schema, might as well
         # just let the exception happen
         self.field_schema = r.json['schema']
@@ -275,14 +286,14 @@ class LazyDict:
                                              pluralize(self.object_type)) + '/'
 
             if self.filter_string:
-                r = requests.post(
+                r = self.endpoint.requests.post(
                     urlparse.urljoin(base_endpoint, 'filter'),
                     headers={'content-type': 'application/json'},
                     data=json.dumps({'filter': self.filter_string}))
                 self.logger.debug('payload: %s' % (
                     {'filter': self.filter_string}))
             else:
-                r = requests.get(
+                r = self.endpoint.requests.get(
                     base_endpoint,
                     headers={'content-type': 'application/json'})
 
@@ -318,22 +329,23 @@ class LazyDict:
 
 
 class RoushEndpoint:
-    def __init__(self, endpoint=None):
+    def __init__(self, endpoint=None, cert=None, roush_ca=None):
         self.endpoint = endpoint
         if not endpoint:
             self.endpoint = os.environ.get('ROUSH_ENDPOINT',
                                            'http://localhost:8080')
+        self.requests = _setup_requests(cert, roush_ca)
 
         self.logger = logging.getLogger('roush.endpoint')
         self.schemas = {}
 
         try:
-            r = requests.get('%s/schema' % self.endpoint)
-        except requests.exceptions.ConnectionError as e:
+            r = self.requests.get('%s/schema' % self.endpoint)
+        except requests_lib.exceptions.ConnectionError as e:
             self.logger.error(str(e))
             self.logger.error('Could not connect to endpoint %s/schema' % (
                 self.endpoint))
-            raise requests.exceptions.ConnectionError(
+            raise requests_lib.exceptions.ConnectionError(
                 'could not connect to endpoint %s/schema' % self.endpoint)
 
         try:
@@ -578,12 +590,13 @@ class RoushObject(object):
                      url=None):
         if not url:
             url = self._url_for()
-        fn = getattr(requests, request_type)
+        fn = getattr(self.endpoint.requests, request_type)
         if payload:
             payload = json.dumps(payload)
             self.logger.debug('Payload: %s' % (payload))
         r = fn(url, data=payload, headers=headers)
         return r
+
 
     def _request_put(self):
         return self._request('put', payload=self.attributes)
@@ -706,6 +719,7 @@ def main():
             traceback.print_exc()
 
         sys.exit(1)
+
 
 if __name__ == '__main__':
     main()
