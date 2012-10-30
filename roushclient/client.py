@@ -11,16 +11,18 @@ import urlparse
 import requests
 
 
-def _setup_requests(ssl=False, cert=None, roush_ca=None):
-    if not cert:
-        cert = os.environ.get('ROUSH_CERT', cert)
-    if not roush_ca:
-        roush_ca = os.environ.get('ROUSH_CA', roush_ca)
-    verify = not roush_ca is None
-    if ssl:
-        return requests.Session(cert=cert, verify=verify)
-    else:
-        return requests.Session()
+class Requester(object):
+    def __init__(ssl=False, cert=None, roush_ca=None):
+        if not cert:
+            cert = os.environ.get('ROUSH_CERT', cert)
+        if not roush_ca:
+            roush_ca = os.environ.get('ROUSH_CA', roush_ca)
+        self.verify = not roush_ca is None
+        self.requests = requests.Session(cert=cert)
+        for m in ['get', 'head', 'post', 'put', 'patch', 'delete']:
+            setattr(self, m, partial(self.requests, verify=self.verify))
+    def __getattr__(self, attr):
+        return getattr(self.requests, attr)
 
 
 # monkey-patch requests
@@ -335,7 +337,7 @@ class RoushEndpoint:
             self.endpoint = os.environ.get('ROUSH_ENDPOINT',
                                            'http://localhost:8080')
         ssl = self.endpoint.find("https://") == 0
-        self.requests = _setup_requests(ssl, cert, roush_ca)
+        self.requests = Requester(ssl, cert, roush_ca)
 
         self.logger = logging.getLogger('roush.endpoint')
         self.schemas = {}
