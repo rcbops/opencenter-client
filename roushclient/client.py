@@ -30,7 +30,7 @@ class Requester(object):
         self.requests = requests
         old=False
         try:
-            requests.get("", valid=False)
+            requests.get("", verify=False)
         except TypeError:
             #old version of requests
             old=True
