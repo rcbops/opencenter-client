@@ -28,11 +28,23 @@ class Requester(object):
         self.verify = not roush_ca is None
         self.cert = cert
         self.requests = requests
+        old=False
+        try:
+            requests.get("", valid=False)
+        except TypeError:
+            #old version of requests
+            old=True
+        except requests.exceptions.URLRequired:
+            #newer version
+            pass
         for m in ['get', 'head', 'post', 'put', 'patch', 'delete']:
-            setattr(self, m, ensure_json(
-                partial(getattr(self.requests, m),
-                        cert=self.cert,
-                        verify=self.verify)))
+            if old:
+                f = getattr(self.requests, m)
+            else:
+                f = partial(getattr(self.requests, m),
+                            cert=self.cert,
+                            verify=self.verify)
+            setattr(self, m, ensure_json(f))
     def __getattr__(self, attr):
         return getattr(self.requests, attr)
 
