@@ -12,7 +12,7 @@ import requests
 
 
 class Requester(object):
-    def __init__(ssl=False, cert=None, roush_ca=None):
+    def __init__(self, cert=None, roush_ca=None):
         if not cert:
             cert = os.environ.get('ROUSH_CERT', cert)
         if not roush_ca:
@@ -336,8 +336,7 @@ class RoushEndpoint:
         if not endpoint:
             self.endpoint = os.environ.get('ROUSH_ENDPOINT',
                                            'http://localhost:8080')
-        ssl = self.endpoint.find("https://") == 0
-        self.requests = Requester(ssl, cert, roush_ca)
+        self.requests = Requester(cert, roush_ca)
 
         self.logger = logging.getLogger('roush.endpoint')
         self.schemas = {}
