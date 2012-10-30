@@ -108,6 +108,8 @@ class SchemaEntry:
             return 'text'
         elif self.schema_entry['type'] == 'JSON':
             return 'json'
+        elif self.schema_entry['type'] == 'JSON_ENTRY':
+            return 'json_entry'
         elif self.schema_entry['type'].startswith('VARCHAR'):
             return 'string'
         else:
@@ -468,9 +470,12 @@ class RoushObject(object):
     def __setattr__(self, name, value):
         # print "setting %s => %s" % (str(name), str(value))
         if self.schema.has_field(name):
-            if self.schema.fields[name].type() == 'json':
+            field_type = self.schema.fields[name].type()
+
+            if field_type == 'json' or field_type == 'json_entry':
                 if isinstance(value, str):   # SHOULD I BE DOING THIS?!?!?!
                     value = json.loads(value)
+
             self.__dict__['attributes'][name] = value
         elif name in ['attributes',
                          'endpoint',
