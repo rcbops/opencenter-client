@@ -334,7 +334,7 @@ class RoushEndpoint:
         if not endpoint:
             self.endpoint = os.environ.get('ROUSH_ENDPOINT',
                                            'http://localhost:8080')
-        ssl = self.endpoint.find("https://" == 0)
+        ssl = self.endpoint.find("https://") == 0
         self.requests = _setup_requests(ssl, cert, roush_ca)
 
         self.logger = logging.getLogger('roush.endpoint')
