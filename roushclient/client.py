@@ -9,7 +9,15 @@ import sys
 import traceback
 import urlparse
 import requests
+from functools import partial
 
+def ensure_json(f):
+    def wrap(*args, **kwargs):
+        r = f(*args, **kwargs)
+        if not hasattr(r, 'json'):
+            r.__dict__['json'] = json.loads(r.content)
+        return r
+    return wrap
 
 class Requester(object):
     def __init__(self, cert=None, roush_ca=None):
@@ -18,19 +26,15 @@ class Requester(object):
         if not roush_ca:
             roush_ca = os.environ.get('ROUSH_CA', roush_ca)
         self.verify = not roush_ca is None
-        self.requests = requests.Session(cert=cert)
+        self.cert = cert
+        self.requests = requests
         for m in ['get', 'head', 'post', 'put', 'patch', 'delete']:
-            setattr(self, m, partial(self.requests, verify=self.verify))
+            setattr(self, m, ensure_json(
+                partial(getattr(self.requests, m),
+                        cert=self.cert,
+                        verify=self.verify)))
     def __getattr__(self, attr):
         return getattr(self.requests, attr)
-
-
-# monkey-patch requests
-def get_json(self):
-    return json.loads(self.content)
-
-if not hasattr(requests.Response, 'json'):
-    requests.Response.json = property(get_json)
 
 
 # this might be a trifle naive
