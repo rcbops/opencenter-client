@@ -644,7 +644,7 @@ class RoushNode(RoushObject):
 
     # return filtered list of all tasks
     def _tasks(self):
-        return self.endpoint['tasks'].filter('host_id=%d' % (
+        return self.endpoint['tasks'].filter('node_id=%d' % (
             self.attributes['id']))
 
     # return next available task
