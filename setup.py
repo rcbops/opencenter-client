@@ -2,7 +2,7 @@
 
 from setuptools import setup, find_packages
 
-requirements = ['requests==0.14.0']
+requirements = ['requests<=0.14.0']
 
 setup(name='roush-client',
       version='1.0.0',
