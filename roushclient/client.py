@@ -574,8 +574,9 @@ class RoushObject(object):
         else:
             action = 'put'
 
-        getattr(self, '_request_%s' % action)()
+        ret = getattr(self, '_request_%s' % action)()
         self.endpoint._refresh(pluralize(self.object_type), action)
+        return ret
 
     def delete(self):
         # -XDELETE, raises if no id
