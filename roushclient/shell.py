@@ -60,11 +60,11 @@ class RoushShell():
 
     def do_show(self, args, obj):
         if not args.id:
-            print ("--id <integer> is required for the show command")      
-            return 0                                                       
-        try:                                                               
-            id = args.id                                                   
-        except Exception, e:                                               
+            print ("--id <integer> is required for the show command")
+            return 0
+        try:
+            id = args.id
+        except Exception, e:
             print "%s" % e
 
         act = getattr(self.endpoint, obj)
