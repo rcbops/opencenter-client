@@ -48,7 +48,7 @@ class RoushShell():
                                    'show',
                                    'delete',
                                    'create',
-                                   'filter',
+                                   # 'filter',
                                    'update'],
                                    help='available commands'
                                    )
@@ -57,6 +57,35 @@ class RoushShell():
                 subparser.add_argument('--%s' % arg)
             self.subcommands[command] = subparser
             subparser.set_defaults(func=callback)
+
+    def do_show(self, args, obj):
+        if not args.id:
+            print ("--id <integer> is required for the show command")      
+            return 0                                                       
+        try:                                                               
+            id = args.id                                                   
+        except Exception, e:                                               
+            print "%s" % e
+
+        act = getattr(self.endpoint, obj)
+        print act[id]
+
+    def do_delete(self, args, obj):
+        if not args.id:
+            print ("--id <integer is required for the delete command")
+            return 0
+        try:
+            id = args.id
+        except Exception, e:
+            print "%s" % e
+
+        act = getattr(self.endpoint, obj)
+        try:
+            act[id].delete()
+        except Exception, e:
+            print "%s" % e
+
+        print "%s %s has been deleted." % tuple([obj, id])
 
     def main(self, argv):
         # setup
@@ -73,6 +102,11 @@ class RoushShell():
         if action == "list":
             print getattr(self.endpoint, obj)
 
+        if action == "show":
+            self.do_show(args, obj)
+
+        if action == "delete":
+            self.do_delete(args, obj)
 
 
 def main():
