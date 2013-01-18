@@ -13,7 +13,7 @@ class RoushShell():
 
     def get_base_parser(self):
         parser = argparse.ArgumentParser(description='Roush CLI',
-                                         prog='r2',
+                                         prog='roushcli',
                                          )
         parser.add_argument('-v', '--verbose',
                             action='store_true',
