@@ -58,6 +58,12 @@ class RoushShell():
             self.subcommands[command] = subparser
             subparser.set_defaults(func=callback)
 
+    def get_field_schema(self, command):
+        obj = getattr(self.endpoint, command)
+        schema = self.endpoint.get_schema(command[:-1])
+        fields = schema.field_schema
+        return fields
+
     def do_show(self, args, obj):
         if not args.id:
             print ("--id <integer> is required for the show command")
@@ -69,6 +75,24 @@ class RoushShell():
 
         act = getattr(self.endpoint, obj)
         print act[id]
+
+    def do_create(self, args, obj):
+        if not args.name:
+            print ("--name <string> is required for the create command")
+            return 0
+        field_schema = self.get_field_schema(obj)
+        arguments = []
+        for field in field_schema:
+            arguments.append(field)
+
+        ver = dict([(k, v) for k, v in args._get_kwargs()
+                   if k in arguments and v is not None])
+        act = getattr(self.endpoint, obj)
+        try:
+            new_node = act.create(**ver)
+            new_node.save()
+        except Exception, e:
+            print "%s" % e
 
     def do_delete(self, args, obj):
         if not args.id:
@@ -104,6 +128,9 @@ class RoushShell():
 
         if action == "show":
             self.do_show(args, obj)
+
+        if action == "create":
+            self.do_create(args, obj)
 
         if action == "delete":
             self.do_delete(args, obj)
