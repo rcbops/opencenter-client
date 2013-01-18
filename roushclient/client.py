@@ -11,6 +11,7 @@ import urlparse
 import requests
 from functools import partial
 
+
 def ensure_json(f):
     def wrap(*args, **kwargs):
         r = f(*args, **kwargs)
@@ -18,6 +19,7 @@ def ensure_json(f):
             r.__dict__['json'] = json.loads(r.content)
         return r
     return wrap
+
 
 class Requester(object):
     def __init__(self, cert=None, roush_ca=None):
@@ -28,12 +30,12 @@ class Requester(object):
         self.verify = not roush_ca is None
         self.cert = cert
         self.requests = requests
-        old=False
+        old = False
         try:
             requests.get("", verify=False)
         except TypeError:
             #old version of requests
-            old=True
+            old = True
         except requests.exceptions.URLRequired:
             #newer version
             pass
@@ -45,6 +47,7 @@ class Requester(object):
                             cert=self.cert,
                             verify=self.verify)
             setattr(self, m, ensure_json(f))
+
     def __getattr__(self, attr):
         return getattr(self.requests, attr)
 
@@ -57,6 +60,8 @@ def singularize(noun):
     return noun[:-1]
 
 
+# oddly, this is not a direct inversion of the
+# sophisticated "singularize" function
 def pluralize(noun, irregular_nouns={'deer': 'deer'}, vowels='aeiou'):
     if not noun:
         return ''
@@ -170,6 +175,38 @@ class ObjectSchema:
         if table in self.fk:
             return self.fk[table]
         return None
+
+
+class ExecutionPlan(object):
+    def __init__(self, plan):
+        self.raw_plan = plan
+
+    def interactively_solve(self):
+        for plan_entry in self.raw_plan:
+            if 'args' in plan_entry:
+                args = plan_entry['args']
+                for arg in args:
+                    arg_type = args[arg]['type']
+                    arg_required = args[arg]['required']
+                    arg_choices = args[arg].get('choices', None)
+
+                    prompt = '%s (%s) %s' % (
+                        arg, arg_type, 'required' if arg_required else '')
+
+                    if arg_choices:
+                        prompt += '[Choices: %s]' % ','.join(arg_choices)
+
+                    value = input('%s > ' % prompt)
+
+                    if arg_type == 'int':
+                        value = int(value)
+
+                    if arg_type == 'interface':
+                        value = int(value)
+
+                    plan_entry['args'][arg]['value'] = value
+
+        return self.raw_plan
 
 
 class LazyDict:
@@ -349,8 +386,10 @@ class LazyDict:
 
 
 class RoushEndpoint:
-    def __init__(self, endpoint=None, cert=None, roush_ca=None):
+    def __init__(self, endpoint=None, cert=None, roush_ca=None,
+                 interactive=False):
         self.endpoint = endpoint
+        self.interactive = interactive
         if not endpoint:
             self.endpoint = os.environ.get('ROUSH_ENDPOINT',
                                            'http://localhost:8080')
@@ -399,29 +438,13 @@ class RoushEndpoint:
     def _invalidate(self, what, how):
         self.logger.debug('invalidating %s on %s' % (what, how))
 
+    def get_objectlist(self):
+        return self._object_lists.keys()
+
     def get_schema(self, object_type):
         if not object_type in self.schemas:
             self.schemas[object_type] = ObjectSchema(self, object_type)
         return self.schemas[object_type]
-
-    # These are all deprecated interfaces.  Should now
-    # use endpoint.nodes.create(), or endpoint.cluster.create(), etc.
-
-    def Node(self, **kwargs):
-        self.logger.debug('DEPRECATED: endpoint.Node()')
-        return RoushObject('node', self, **kwargs)
-
-    def Cluster(self, **kwargs):
-        self.logger.debug('DEPRECATED: endpoint.Cluster()')
-        return RoushCluster(endpoint=self, **kwargs)
-
-    def Role(self, **kwargs):
-        self.logger.debug('DEPRECATED: endpoint.Role()')
-        return RoushObject('role', self, **kwargs)
-
-    def Task(self, **kwargs):
-        self.logger.debug('DEPRECATED: endpoint.Task()')
-        return RoushObject('task', self, **kwargs)
 
 
 class RoushObject(object):
@@ -461,8 +484,8 @@ class RoushObject(object):
             return self.synthesized_fields[name]()
 
         # uh oh.
-        raise AttributeError("'Roush%s' object has no attribute '%s'" % (
-                self.object_type.capitalize(), name))
+        raise AttributeError("'Roush%s' object has no attribute '%s'" %
+                             (self.object_type.capitalize(), name))
 
     def __getitem__(self, name):
         return self.__getattr__(name)
@@ -478,15 +501,15 @@ class RoushObject(object):
 
             self.__dict__['attributes'][name] = value
         elif name in ['attributes',
-                         'endpoint',
-                         'object_type',
-                         'synthesized_fields',
-                         'logger',
-                         'schema']:
+                      'endpoint',
+                      'object_type',
+                      'synthesized_fields',
+                      'logger',
+                      'schema']:
             object.__setattr__(self, name, value)
         else:
-            raise AttributeError("'Roush%s' object has no attribute '%s'" % (
-                    self.object_type.capitalize(), name))
+            raise AttributeError("'Roush%s' object has no attribute '%s'" %
+                                 (self.object_type.capitalize(), name))
 
     def _cross_object(self, foreign_table):
         if self.schema.has_fk_for(foreign_table):
@@ -574,8 +597,9 @@ class RoushObject(object):
         else:
             action = 'put'
 
-        getattr(self, '_request_%s' % action)()
+        ret = getattr(self, '_request_%s' % action)()
         self.endpoint._refresh(pluralize(self.object_type), action)
+        return ret
 
     def delete(self):
         # -XDELETE, raises if no id
@@ -587,23 +611,34 @@ class RoushObject(object):
         r = self._raw_request(request_type, **kwargs)
 
         try:
+            self.logger.debug('got result back: %s' % r.json)
+            self.logger.debug('got result code: %d' % r.status_code)
+
             if self.object_type in r.json:
-                self.logger.debug('got result back: %s' % (
-                    r.json[self.object_type]))
-                self.logger.debug('got result code: %d' % r.status_code)
                 self.attributes = r.json[self.object_type]
         except KeyboardInterrupt:
             raise
         except:
             pass
 
+        if r.status_code == 409 and self.endpoint.interactive:
+            payload = kwargs.get('payload', {})
+            execution_plan = ExecutionPlan(r.json['plan'])
+            new_plan = execution_plan.interactively_solve()
+
+            payload.update({'plan': new_plan})
+
+            return self._request(
+                'post', url=self.endpoint.endpoint + '/plan/',
+                payload=payload)
+
         if r.status_code < 300 and r.status_code > 199:
             self.endpoint._invalidate(self.object_type,
                                       request_type)
             return True
         else:
-            self.logger.warn('status code %s on %s' % (
-                    r.status_code, request_type))
+            self.logger.warn('status code %s on %s' %
+                             (r.status_code, request_type))
             return False
 
     def _raw_request(self,
@@ -620,7 +655,6 @@ class RoushObject(object):
         r = fn(url, data=payload, headers=headers)
         return r
 
-
     def _request_put(self):
         return self._request('put', payload=self.attributes)
 
@@ -632,6 +666,15 @@ class RoushObject(object):
 
     def _request_delete(self):
         return self._request('delete')
+
+
+class RoushAdventure(RoushObject):
+    def __init__(self, **kwargs):
+        super(RoushAdventure, self).__init__('adventure', **kwargs)
+
+    def execute(self, **kwargs):
+        url = urlparse.urljoin(self._url_for() + '/', 'execute')
+        return self._request('post', url=url, payload=kwargs)
 
 
 class RoushNode(RoushObject):
@@ -670,17 +713,6 @@ class RoushNode(RoushObject):
                 map(lambda x: '(id=%d)' % x, adventure_list)))
 
 
-# this only exists to provide synthesized
-class RoushCluster(RoushObject):
-    def __init__(self, **kwargs):
-        super(RoushCluster, self).__init__('cluster', **kwargs)
-        self.synthesized_fields = {'nodes': lambda: self._nodes()}
-
-    def _nodes(self):
-        return self.endpoint['nodes'].filter('cluster_id=%d' % (
-            self.attributes['id']))
-
-
 class ClientApp:
     def main(self, argv):
         # logging.basicConfig(level=logging.DEBUG)
@@ -699,7 +731,7 @@ class ClientApp:
             endpoint = payload['endpoint']
             del payload['endpoint']
 
-        ep = RoushEndpoint(endpoint)
+        ep = RoushEndpoint(endpoint, interactive=True)
 
         if uopts[0] == 'shell':
             code.interact(local=locals())
@@ -714,9 +746,6 @@ class ClientApp:
 
         obj = ep[pluralize(node_type)]
 
-        # reduce(lambda x, y: x[y], [ "a", "b", "c" ],
-        #     { "a": { "b": { "c": 3}}})
-
         {'list': lambda: sys.stdout.write(str(obj) + '\n'),
          'show': lambda: sys.stdout.write(str(reduce(lambda x, y: x[y],
                                                      uopts, obj)) + '\n'),
@@ -728,7 +757,8 @@ class ClientApp:
              '\n'.join(['%-15s: %s' % (x.field_name, x.type())
                         for x in ep.get_schema(node_type).fields.values()])
              + '\n'),
-         'update': lambda: obj.new(id=uopts.pop(0), **payload).save()}[op]()
+         'update': lambda: obj.new(id=uopts.pop(0), **payload).save()}.get(
+             op, lambda: getattr(obj[uopts.pop()], op)(**payload))()
 
 
 def main():
