@@ -1,2 +1,6 @@
 .venv
+*.swp
 *.pyc
+build/
+dist/
+roush_client.egg-info/
