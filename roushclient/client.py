@@ -177,6 +177,38 @@ class ObjectSchema:
         return None
 
 
+class RequestResult(object):
+    def __init__(self, response):
+        self.response = response
+        self.execution_plan = None
+
+        if self.response.status_code == 409:
+            self.execution_plan = ExecutionPlan(self.response.json['plan'])
+
+    def __nonzero__(self):
+        if self.response.status_code < 200 or \
+                self.response.status_code > 299:
+            return False
+        return True
+
+    def solve(self, payload):
+        pass
+
+    @property
+    def requires_input(self):
+        if self.response.status_code == 409:
+            return True
+        return False
+
+    @property
+    def status_code(self):
+        return self.response.status_code
+
+    @property
+    def json(self):
+        return self.response.json
+
+
 class ExecutionPlan(object):
     def __init__(self, plan):
         self.raw_plan = plan
@@ -608,7 +640,7 @@ class RoushObject(object):
         self._request_delete()
 
     def _request(self, request_type, **kwargs):
-        r = self._raw_request(request_type, **kwargs)
+        r = RequestResult(self._raw_request(request_type, **kwargs))
 
         try:
             self.logger.debug('got result back: %s' % r.json)
@@ -621,25 +653,23 @@ class RoushObject(object):
         except:
             pass
 
-        if r.status_code == 409 and self.endpoint.interactive:
-            payload = kwargs.get('payload', {})
-            execution_plan = ExecutionPlan(r.json['plan'])
-            new_plan = execution_plan.interactively_solve()
+        if not r:
+            if self.endpoint.interactive and r.requires_input:
+                payload = kwargs.get('payload', {})
+                new_plan = r.execution_plan.interactively_solve()
+                payload.update({'plan': new_plan})
 
-            payload.update({'plan': new_plan})
+                return self._request(
+                    'post', url=self.endpoint.endpoint + '/plan/',
+                    payload=payload)
 
-            return self._request(
-                'post', url=self.endpoint.endpoint + '/plan/',
-                payload=payload)
-
-        if r.status_code < 300 and r.status_code > 199:
+            else:
+                self.logger.warn('status code %s on %s' %
+                                 (r.status_code, request_type))
+        else:
             self.endpoint._invalidate(self.object_type,
                                       request_type)
-            return True
-        else:
-            self.logger.warn('status code %s on %s' %
-                             (r.status_code, request_type))
-            return False
+        return r
 
     def _raw_request(self,
                      request_type,
