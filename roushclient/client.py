@@ -742,6 +742,9 @@ class RoushNode(RoushObject):
             return self.endpoint['adventures'].filter(' or '.join(
                 map(lambda x: '(id=%d)' % x, adventure_list)))
 
+    def whoami(self, name):
+        url = urlparse.urljoin(self._url_for(), 'whoami')
+        return self._request('post', url=url, payload={"hostname": name})
 
 class ClientApp:
     def main(self, argv):
@@ -775,8 +778,9 @@ class ClientApp:
                     '\n'))
 
         obj = ep[pluralize(node_type)]
-
-        {'list': lambda: sys.stdout.write(str(obj) + '\n'),
+        # TODO: if there is no object number on the 'op' call, it
+        # should call the class method.
+        cmds = {'list': lambda: sys.stdout.write(str(obj) + '\n'),
          'show': lambda: sys.stdout.write(str(reduce(lambda x, y: x[y],
                                                      uopts, obj)) + '\n'),
          'delete': lambda: obj[uopts.pop(0)].delete(),
@@ -787,8 +791,25 @@ class ClientApp:
              '\n'.join(['%-15s: %s' % (x.field_name, x.type())
                         for x in ep.get_schema(node_type).fields.values()])
              + '\n'),
-         'update': lambda: obj.new(id=uopts.pop(0), **payload).save()}.get(
-             op, lambda: getattr(obj[uopts.pop()], op)(**payload))()
+         'update': lambda: obj.new(id=uopts.pop(0), **payload).save()}
+
+        #if the command is in the cmds list, use it, otherwise call
+        #the object or class method as appropriate
+        cmds.get(op, op_helper(obj, op, uopts, **payload))()
+
+
+def op_helper(obj, op, uopts, **payload):
+    if len(uopts) > 0:
+        # this must be an object method
+        return lambda: getattr(obj[uopts.pop()], op)(**payload)
+    else:
+        # this must be a class method
+        type_class = "Roush%s" % obj.object_type.capitalize()
+        if type_class in globals():
+            o = globals()[type_class](endpoint=obj.endpoint, **payload)
+        else:
+            o = RoushObject
+        return lambda: getattr(o, op)(**payload)
 
 
 def main():
