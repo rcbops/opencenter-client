@@ -1,3 +1,6 @@
+r2
+==
+
 **Show all nodes:**
 
     r2 node show
