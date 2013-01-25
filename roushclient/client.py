@@ -221,14 +221,28 @@ class ExecutionPlan(object):
                     arg_type = args[arg]['type']
                     arg_required = args[arg]['required']
                     arg_choices = args[arg].get('choices', None)
+                    arg_default = args[arg].get('default', None)
 
-                    prompt = '%s (%s) %s' % (
-                        arg, arg_type, 'required' if arg_required else '')
+                    if 'friendly' in args[arg]:
+                        print '%s: %s' % (arg, args[arg]['friendly'])
+
+                    if arg_default is not None:
+                        prompt = "%s (%s) %s %s" % (
+                            arg, arg_type,
+                            'REQUIRED' if arg_required else 'OPTIONAL',
+                            ' [%s]' % arg_default)
+                    else:
+                        prompt = '%s (%s) %s' % (
+                            arg, arg_type,
+                            'REQUIRED' if arg_required else 'OPTIONAL')
 
                     if arg_choices:
                         prompt += '[Choices: %s]' % ','.join(arg_choices)
 
-                    value = input('%s > ' % prompt)
+                    value = raw_input('%s > ' % prompt)
+
+                    if value == '':
+                        value = arg_default
 
                     if arg_type == 'int':
                         value = int(value)
@@ -746,6 +760,7 @@ class RoushNode(RoushObject):
         url = urlparse.urljoin(self._url_for(), 'whoami')
         return self._request('post', url=url, payload={"hostname": name})
 
+
 class ClientApp:
     def main(self, argv):
         # logging.basicConfig(level=logging.DEBUG)
@@ -781,17 +796,17 @@ class ClientApp:
         # TODO: if there is no object number on the 'op' call, it
         # should call the class method.
         cmds = {'list': lambda: sys.stdout.write(str(obj) + '\n'),
-         'show': lambda: sys.stdout.write(str(reduce(lambda x, y: x[y],
-                                                     uopts, obj)) + '\n'),
-         'delete': lambda: obj[uopts.pop(0)].delete(),
-         'create': lambda: obj.new(**payload).save(),
-         'filter': lambda: sys.stdout.write(str(obj.filter(uopts.pop(0))) +
-                                            '\n'),
-         'schema': lambda: sys.stdout.write(
-             '\n'.join(['%-15s: %s' % (x.field_name, x.type())
-                        for x in ep.get_schema(node_type).fields.values()])
-             + '\n'),
-         'update': lambda: obj.new(id=uopts.pop(0), **payload).save()}
+                'show': lambda: sys.stdout.write(str(
+                    reduce(lambda x, y: x[y], uopts, obj)) + '\n'),
+                'delete': lambda: obj[uopts.pop(0)].delete(),
+                'create': lambda: obj.new(**payload).save(),
+                'filter': lambda: sys.stdout.write(str(
+                    obj.filter(uopts.pop(0))) + '\n'),
+                'schema': lambda: sys.stdout.write(
+                '\n'.join(['%-15s: %s' % (x.field_name, x.type())
+                           for x in ep.get_schema(node_type).fields.values()])
+                + '\n'),
+                'update': lambda: obj.new(id=uopts.pop(0), **payload).save()}
 
         #if the command is in the cmds list, use it, otherwise call
         #the object or class method as appropriate
