@@ -1,4 +1,4 @@
-r2
+Using the r2 cli
 ==
 
 **Show all nodes:**
