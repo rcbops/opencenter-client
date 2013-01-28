@@ -13,8 +13,9 @@ class RoushCLI(cliapp.Application):
     def add_settings(self):
         self.settings.string(['api_endpoint'], 'URI for Roush Endpoint',
                              default='http://0.0.0.0:8080')
-        self.settings.boolean(['poll'], 'Polls a task after it has been' \
-                              'created until it has been completed',
+        self.settings.boolean(['poll'],
+                              'Polls a task after it has been created ' +
+                              'until it has been completed',
                               default=False)
         self.settings.load_configs()
         self.urls = {"node": self.settings['api_endpoint'] + '/nodes/',
@@ -24,8 +25,8 @@ class RoushCLI(cliapp.Application):
         self.headers = {'content-type': 'application/json'}
         self.node_cols = ['id', 'hostname', 'cluster_id', 'role_id', 'config']
         self.cluster_cols = ['id', 'name', 'description', 'config']
-        self.task_cols = ['id', 'node_id', 'action', 'payload', 'state', 'result',
-                          'submitted', 'expires', 'completed']
+        self.task_cols = ['id', 'node_id', 'action', 'payload', 'state',
+                          'result', 'submitted', 'expires', 'completed']
 
     def _list_obj(self, obj):
         r = requests.get(self.urls[obj])
@@ -253,7 +254,6 @@ class RoushCLI(cliapp.Application):
                     sys.stdout.flush()
                     time.sleep(3)
 
-
 #    def cmd_task_delete(self, args):
 #        """Not Implemented: WONT FIX"""
 #        pass
@@ -336,6 +336,7 @@ class RoushCLI(cliapp.Application):
                    'get': self.cmd_task_get}
         cmd = args.pop(0)
         options[cmd](args)
+
 
 def main():
     app = RoushCLI(version='1.0.0')
