@@ -543,9 +543,14 @@ class RoushObject(object):
 
             if field_type == 'json' or field_type == 'json_entry':
                 if isinstance(value, str):   # SHOULD I BE DOING THIS?!?!?!
-                    value = json.loads(value)
+                    try:
+                        value = json.loads(value)
+                    except ValueError:
+                        # no json... make it a string
+                        pass
 
             self.__dict__['attributes'][name] = value
+
         elif name in ['attributes',
                       'endpoint',
                       'object_type',
