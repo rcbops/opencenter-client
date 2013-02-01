@@ -53,7 +53,7 @@ class RoushShell():
                                    )
 
             for arg in arguments:
-                print arguments[arg]['type']
+                # print arguments[arg]['type']
                 subparser.add_argument('--%s' % arg)
             self.subcommands[command] = subparser
             subparser.set_defaults(func=callback)
