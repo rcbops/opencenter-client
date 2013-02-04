@@ -33,7 +33,7 @@ Using r2 cli
 
     r2 task show <task id>
 
-**Specify roush server endpoint:**
+**Override roush server endpoint:**
 
     ROUSH_ENDPOINT=http://<roush server>:8080 r2 node show
 
@@ -76,6 +76,6 @@ Using roushcli
 
     roushcli task show --id=<task id>
 
-**Specify roush server endpoint:**
+**Override roush server endpoint:**
 
     ROUSH_ENDPOINT=http://<roush server>:8080 roushcli node list
