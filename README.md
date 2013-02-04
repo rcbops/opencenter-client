@@ -1,4 +1,4 @@
-Using the r2 cli
+Using r2 cli
 ==
 
 **Show all nodes:**
@@ -36,9 +36,12 @@ Using the r2 cli
 **Specify roush server endpoint:**
 
     ROUSH_ENDPOINT=http://<roush server>:8080 r2 node show
+
+or:
+
     r2 node show --endpoint=http://<roush server>:8080
 
-Using the roush-cli cli
+Using roushcli
 ==
 
 **Show all nodes:**
