@@ -32,3 +32,47 @@ Using the r2 cli
 **Show details about a particular task:**
 
     r2 task show <task id>
+
+**Specify roush server endpoint:**
+
+    ROUSH_ENDPOINT=http://<roush server>:8080 r2 node show
+    r2 node show --endpoint=http://<roush server>:8080
+
+Using the roush-cli cli
+==
+
+**Show all nodes:**
+
+    roushcli node list
+
+**Show details about a particular node:**
+
+    roushcli node show --id=<node id>
+
+**Show all adventures:**
+
+    roushcli adventure list
+
+**Show details about a particular adventure:**
+
+    roushcli adventure show --id=<adventure id>
+
+**Show adventures a node can execute:**
+
+    TBD
+
+**Execute an adventure on a particular node:**
+
+    TBD
+
+**Show all tasks:**
+
+    roushcli task list
+
+**Show details about a particular task:**
+
+    roushcli task show --id=<task id>
+
+**Specify roush server endpoint:**
+
+    ROUSH_ENDPOINT=http://<roush server>:8080 roushcli node list
