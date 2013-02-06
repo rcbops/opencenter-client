@@ -582,11 +582,14 @@ class RoushObject(object):
     def row_format(self):
         max_len = max(map(lambda x: len(x), self.schema.fields.keys()))
         out_fmt = "%%-%ds: %%s" % max_len
+        pad = '  '.join(('\n', ' ' * max_len))
         out_str = ""
         for k in self.schema.fields.keys():
             v = self._resolved_value(k)
-            out_str += out_fmt % (k.replace('_id', ''), v) + '\n'
-
+            v = json.dumps(v, sort_keys=True, indent=4)
+            v = v.replace('\n', pad)
+            str_bits = (out_str, out_fmt % (k.replace('_id', ''), v), '\n')
+            out_str = ''.join(str_bits)
         return out_str
 
     def col_format(self, widths=None, separator=' '):
