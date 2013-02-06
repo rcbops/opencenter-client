@@ -771,7 +771,6 @@ class RoushNode(RoushObject):
 
 class ClientApp:
     def main(self, argv):
-        # logging.basicConfig(level=logging.DEBUG)
         argv.pop(0)
         uopts = [x for x in argv if not x.startswith('--')]
         fopts = [x.replace('--', '') for x in argv if x not in uopts]
@@ -779,6 +778,8 @@ class ClientApp:
         if 'debug' in fopts:
             logging.basicConfig(level=logging.DEBUG)
             fopts.remove('debug')
+        else:
+            logging.basicConfig(level=logging.WARN)
 
         payload = dict([x.split('=', 1) for x in fopts])
 
