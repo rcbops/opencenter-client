@@ -191,9 +191,6 @@ class RequestResult(object):
             return False
         return True
 
-    def solve(self, payload):
-        pass
-
     @property
     def requires_input(self):
         if self.response.status_code == 409:
@@ -212,6 +209,34 @@ class RequestResult(object):
 class ExecutionPlan(object):
     def __init__(self, plan):
         self.raw_plan = plan
+
+    def can_naively_solve(self, value_hash):
+        all_args = {}
+
+        for plan_entry in self.raw_plans:
+            if 'args' in plan_entry:
+                args = plan_entry['args']
+                for arg in args:
+                    if args[arg].get('required', True):
+                        if not arg in value_hash:
+                            return False
+
+                        if arg in all_args:
+                            return False
+
+                        all_args[arg] = True
+        return True
+
+    def naively_solve(self, value_hash):
+        if not self.can_naively_solve(value_hash):
+            return False
+
+        for plan_entry in self.raw_plans:
+            if 'args' in plan_entry:
+                args = plan_entry['args']
+                for arg in args:
+                    if arg in value_hash:
+                        args[arg]['value'] = value_hash[arg]
 
     def interactively_solve(self):
         for plan_entry in self.raw_plan:
@@ -662,8 +687,11 @@ class RoushObject(object):
         self._request_delete()
 
     def _request(self, request_type, **kwargs):
-        r = RequestResult(self._raw_request(request_type, **kwargs))
+        plan_args = None
+        if 'plan_args' in kwargs:
+            plan_args = kwargs.pop('plan_args')
 
+        r = RequestResult(self._raw_request(request_type, **kwargs))
         try:
             self.logger.debug('got result back: %s' % r.json)
             self.logger.debug('got result code: %d' % r.status_code)
@@ -676,18 +704,26 @@ class RoushObject(object):
             pass
 
         if not r:
-            if self.endpoint.interactive and r.requires_input:
+            if r.requires_input:
                 payload = kwargs.get('payload', {})
-                new_plan = r.execution_plan.interactively_solve()
-                payload.update({'plan': new_plan})
+                solved = False
 
-                return self._request(
-                    'post', url=self.endpoint.endpoint + '/plan/',
-                    payload=payload)
+                if self.endpoint.interactive:
+                    solved = True
+                    new_plan = r.execution_plan.interactively_solve()
+                elif plan_args is not None:
+                    solved = r.execution_plan.naively_solve(plan_args)
+                    new_plan = r.execution_plan.raw_plan
 
-            else:
-                self.logger.warn('status code %s on %s' %
-                                 (r.status_code, request_type))
+                if solved:
+                    payload.update({'plan': new_plan})
+
+                    return self._request(
+                        'post', url=self.endpoint.endpoint + '/plan/',
+                        payload=payload)
+
+            self.logger.warn('status code %s on %s' %
+                             (r.status_code, request_type))
         else:
             self.endpoint._invalidate(self.object_type,
                                       request_type)
