@@ -178,9 +178,10 @@ class ObjectSchema:
 
 
 class RequestResult(object):
-    def __init__(self, response):
+    def __init__(self, endpoint, response):
         self.response = response
         self.execution_plan = None
+        self.endpoint = endpoint
 
         if self.response.status_code == 409:
             self.execution_plan = ExecutionPlan(self.response.json['plan'])
@@ -191,14 +192,31 @@ class RequestResult(object):
             return False
         return True
 
-    def solve(self, payload):
-        pass
-
     @property
     def requires_input(self):
         if self.response.status_code == 409:
             return True
         return False
+
+    @property
+    def deferred_task(self):
+        if self.response.status_code == 202:
+            return True
+        return False
+
+    @property
+    def task(self):
+        if self.response.status_code != 202:
+            return None
+
+        # otherwise, get the task from the reponse
+        json_data = self.response.json
+        if not 'task' in json_data or \
+                not 'id' in json_data['task']:
+            return None
+
+        task_id = self.response.json['task']['id']
+        return self.endpoint.tasks[task_id]
 
     @property
     def status_code(self):
@@ -212,6 +230,36 @@ class RequestResult(object):
 class ExecutionPlan(object):
     def __init__(self, plan):
         self.raw_plan = plan
+
+    def can_naively_solve(self, value_hash):
+        all_args = {}
+
+        for plan_entry in self.raw_plan:
+            if 'args' in plan_entry:
+                args = plan_entry['args']
+                for arg in args:
+                    if args[arg].get('required', True):
+                        if not arg in value_hash:
+                            return False
+
+                        if arg in all_args:
+                            return False
+
+                        all_args[arg] = True
+        return True
+
+    def naively_solve(self, value_hash):
+        if not self.can_naively_solve(value_hash):
+            return False
+
+        for plan_entry in self.raw_plan:
+            if 'args' in plan_entry:
+                args = plan_entry['args']
+                for arg in args:
+                    if arg in value_hash:
+                        args[arg]['value'] = value_hash[arg]
+
+        return True
 
     def interactively_solve(self):
         for plan_entry in self.raw_plan:
@@ -661,9 +709,13 @@ class RoushObject(object):
             raise ValueError("No id specified")
         self._request_delete()
 
-    def _request(self, request_type, **kwargs):
-        r = RequestResult(self._raw_request(request_type, **kwargs))
+    def _request(self, request_type, polling=False, **kwargs):
+        plan_args = None
+        if 'plan_args' in kwargs:
+            plan_args = kwargs.pop('plan_args')
 
+        r = RequestResult(self.endpoint,
+                          self._raw_request(request_type, **kwargs))
         try:
             self.logger.debug('got result back: %s' % r.json)
             self.logger.debug('got result code: %d' % r.status_code)
@@ -676,18 +728,26 @@ class RoushObject(object):
             pass
 
         if not r:
-            if self.endpoint.interactive and r.requires_input:
+            if r.requires_input:
                 payload = kwargs.get('payload', {})
-                new_plan = r.execution_plan.interactively_solve()
-                payload.update({'plan': new_plan})
+                solved = False
 
-                return self._request(
-                    'post', url=self.endpoint.endpoint + '/plan/',
-                    payload=payload)
+                if self.endpoint.interactive:
+                    solved = True
+                    new_plan = r.execution_plan.interactively_solve()
+                elif plan_args is not None:
+                    solved = r.execution_plan.naively_solve(plan_args)
+                    new_plan = r.execution_plan.raw_plan
 
-            else:
-                self.logger.warn('status code %s on %s' %
-                                 (r.status_code, request_type))
+                if solved:
+                    payload.update({'plan': new_plan})
+
+                    return self._request(
+                        'post', url=self.endpoint.endpoint + '/plan/',
+                        payload=payload)
+
+            self.logger.warn('status code %s on %s' %
+                             (r.status_code, request_type))
         else:
             self.endpoint._invalidate(self.object_type,
                                       request_type)
@@ -696,10 +756,13 @@ class RoushObject(object):
     def _raw_request(self,
                      request_type,
                      payload=None,
+                     poll=False,
                      headers={'content-type': 'application/json'},
                      url=None):
         if not url:
-            url = self._url_for()
+            url = "%s%s" % (self._url_for(),
+                            '?poll' if poll else '')
+
         fn = getattr(self.endpoint.requests, request_type)
         if payload:
             payload = json.dumps(payload)
@@ -720,13 +783,38 @@ class RoushObject(object):
         return self._request('delete')
 
 
+class RoushTask(RoushObject):
+    def __init__(self, **kwargs):
+        super(RoushTask, self).__init__('task', **kwargs)
+        self.synthesized_fields = {'success': lambda: self._success(),
+                                   'running': lambda: self._running(),
+                                   'complete': lambda: self._complete()}
+
+    def _complete(self):
+        return self.state in ['done', 'timeout', 'cancelled']
+
+    def _running(self):
+        return self.state in ['running', 'delivered']
+
+    def _success(self):
+        return self._complete() and self.state == 'done' and \
+            'result_code' in self.result and self.result['result_code'] == 0
+
+    def wait_for_complete(self):
+        self._request_get()
+
+        while self.state not in ['done', 'timeout', 'cancelled']:
+            self._request('get', poll=True)
+
+
 class RoushAdventure(RoushObject):
     def __init__(self, **kwargs):
         super(RoushAdventure, self).__init__('adventure', **kwargs)
 
-    def execute(self, **kwargs):
+    def execute(self, plan_args=None, **kwargs):
         url = urlparse.urljoin(self._url_for() + '/', 'execute')
-        return self._request('post', url=url, payload=kwargs)
+        return self._request('post', url=url, plan_args=plan_args,
+                             payload=kwargs)
 
 
 class RoushNode(RoushObject):
