@@ -234,7 +234,7 @@ class ExecutionPlan(object):
     def can_naively_solve(self, value_hash):
         all_args = {}
 
-        for plan_entry in self.raw_plans:
+        for plan_entry in self.raw_plan:
             if 'args' in plan_entry:
                 args = plan_entry['args']
                 for arg in args:
@@ -252,12 +252,14 @@ class ExecutionPlan(object):
         if not self.can_naively_solve(value_hash):
             return False
 
-        for plan_entry in self.raw_plans:
+        for plan_entry in self.raw_plan:
             if 'args' in plan_entry:
                 args = plan_entry['args']
                 for arg in args:
                     if arg in value_hash:
                         args[arg]['value'] = value_hash[arg]
+
+        return True
 
     def interactively_solve(self):
         for plan_entry in self.raw_plan:
@@ -809,9 +811,10 @@ class RoushAdventure(RoushObject):
     def __init__(self, **kwargs):
         super(RoushAdventure, self).__init__('adventure', **kwargs)
 
-    def execute(self, **kwargs):
+    def execute(self, plan_args=None, **kwargs):
         url = urlparse.urljoin(self._url_for() + '/', 'execute')
-        return self._request('post', url=url, payload=kwargs)
+        return self._request('post', url=url, plan_args=plan_args,
+                             payload=kwargs)
 
 
 class RoushNode(RoushObject):
