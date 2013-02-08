@@ -178,9 +178,10 @@ class ObjectSchema:
 
 
 class RequestResult(object):
-    def __init__(self, response):
+    def __init__(self, endpoint, response):
         self.response = response
         self.execution_plan = None
+        self.endpoint = endpoint
 
         if self.response.status_code == 409:
             self.execution_plan = ExecutionPlan(self.response.json['plan'])
@@ -196,6 +197,26 @@ class RequestResult(object):
         if self.response.status_code == 409:
             return True
         return False
+
+    @property
+    def deferred_task(self):
+        if self.response.status_code == 202:
+            return True
+        return False
+
+    @property
+    def task(self):
+        if self.response.status_code != 202:
+            return None
+
+        # otherwise, get the task from the reponse
+        json_data = self.response.json
+        if not 'task' in json_data or \
+                not 'id' in json_data['task']:
+            return None
+
+        task_id = self.response.json['task']['id']
+        return self.endpoint.tasks[task_id]
 
     @property
     def status_code(self):
@@ -686,12 +707,13 @@ class RoushObject(object):
             raise ValueError("No id specified")
         self._request_delete()
 
-    def _request(self, request_type, **kwargs):
+    def _request(self, request_type, polling=False, **kwargs):
         plan_args = None
         if 'plan_args' in kwargs:
             plan_args = kwargs.pop('plan_args')
 
-        r = RequestResult(self._raw_request(request_type, **kwargs))
+        r = RequestResult(self.endpoint,
+                          self._raw_request(request_type, **kwargs))
         try:
             self.logger.debug('got result back: %s' % r.json)
             self.logger.debug('got result code: %d' % r.status_code)
@@ -732,10 +754,13 @@ class RoushObject(object):
     def _raw_request(self,
                      request_type,
                      payload=None,
+                     poll=False,
                      headers={'content-type': 'application/json'},
                      url=None):
         if not url:
-            url = self._url_for()
+            url = "%s%s" % (self._url_for(),
+                            '?poll' if poll else '')
+
         fn = getattr(self.endpoint.requests, request_type)
         if payload:
             payload = json.dumps(payload)
@@ -754,6 +779,30 @@ class RoushObject(object):
 
     def _request_delete(self):
         return self._request('delete')
+
+
+class RoushTask(RoushObject):
+    def __init__(self, **kwargs):
+        super(RoushTask, self).__init__('task', **kwargs)
+        self.synthesized_fields = {'success': lambda: self._success(),
+                                   'running': lambda: self._running(),
+                                   'complete': lambda: self._complete()}
+
+    def _complete(self):
+        return self.state in ['done', 'timeout', 'cancelled']
+
+    def _running(self):
+        return self.state in ['running', 'delivered']
+
+    def _success(self):
+        return self._complete() and self.state == 'done' and \
+            'result_code' in self.result and self.result['result_code'] == 0
+
+    def wait_for_complete(self):
+        self._request_get()
+
+        while self.state not in ['done', 'timeout', 'cancelled']:
+            self._request('get', poll=True)
 
 
 class RoushAdventure(RoushObject):
