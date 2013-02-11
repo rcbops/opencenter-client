@@ -788,7 +788,8 @@ class RoushTask(RoushObject):
         super(RoushTask, self).__init__('task', **kwargs)
         self.synthesized_fields = {'success': lambda: self._success(),
                                    'running': lambda: self._running(),
-                                   'complete': lambda: self._complete()}
+                                   'complete': lambda: self._complete(),
+                                   'logtail': lambda: self._logtail()}
 
     def _complete(self):
         return self.state in ['done', 'timeout', 'cancelled']
@@ -805,6 +806,10 @@ class RoushTask(RoushObject):
 
         while self.state not in ['done', 'timeout', 'cancelled']:
             self._request('get', poll=True)
+
+    def _logtail(self):
+        url = urlparse.urljoin(self._url_for() + '/', 'logs')
+        return self._request('get', url=url).json['log']
 
 
 class RoushAdventure(RoushObject):
