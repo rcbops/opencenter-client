@@ -24,7 +24,7 @@ def ensure_json(f):
 
 
 class Requester(object):
-    def __init__(self, cert=None, roush_ca=None):
+    def __init__(self, cert=None, roush_ca=None, user=None, password=None):
         if not cert:
             cert = os.environ.get('ROUSH_CERT', cert)
         if not roush_ca:
@@ -32,6 +32,10 @@ class Requester(object):
         self.verify = not roush_ca is None
         self.cert = cert
         self.requests = requests
+        if user is not None and password is not None:
+            auth = (user, password)
+        else:
+            auth = None
         old = False
         try:
             requests.get("", verify=False)
@@ -46,11 +50,13 @@ class Requester(object):
             pass
         for m in ['get', 'head', 'post', 'put', 'patch', 'delete']:
             if old:
-                f = getattr(self.requests, m)
+                f = partial(getattr(self.requests, m),
+                            auth=auth)
             else:
                 f = partial(getattr(self.requests, m),
                             cert=self.cert,
-                            verify=self.verify)
+                            verify=self.verify,
+                            auth=auth)
             setattr(self, m, ensure_json(f))
 
     def __getattr__(self, attr):
@@ -486,13 +492,15 @@ class LazyDict:
 
 class RoushEndpoint:
     def __init__(self, endpoint=None, cert=None, roush_ca=None,
+                 user=None,
+                 password=None,
                  interactive=False):
         self.endpoint = endpoint
         self.interactive = interactive
         if not endpoint:
             self.endpoint = os.environ.get('ROUSH_ENDPOINT',
                                            'http://localhost:8080')
-        self.requests = Requester(cert, roush_ca)
+        self.requests = Requester(cert, roush_ca, user, password)
 
         self.logger = logging.getLogger('roush.endpoint')
         self.schemas = {}
