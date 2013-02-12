@@ -17,6 +17,8 @@ def ensure_json(f):
         r = f(*args, **kwargs)
         if not hasattr(r, 'json'):
             r.__dict__['json'] = json.loads(r.content)
+        if callable(r.json):
+            r.json = r.json()
         return r
     return wrap
 
@@ -38,6 +40,9 @@ class Requester(object):
             old = True
         except requests.exceptions.URLRequired:
             #newer version
+            pass
+        except requests.exceptions.MissingSchema:
+            #requests 1.1
             pass
         for m in ['get', 'head', 'post', 'put', 'patch', 'delete']:
             if old:
