@@ -511,13 +511,14 @@ class RoushEndpoint:
         try:
             r = self.requests.get('%s/schema' % self.endpoint)
         except requests.exceptions.ConnectionError as e:
-            if r.status_code == 401:
-                r.raise_for_status()
             self.logger.error(str(e))
             self.logger.error('Could not connect to endpoint %s/schema' % (
                 self.endpoint))
             raise requests.exceptions.ConnectionError(
                 'could not connect to endpoint %s/schema' % self.endpoint)
+
+        if r.status_code == 401:
+            r.raise_for_status()
 
         try:
             self.master_schema = r.json['schema']
