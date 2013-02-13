@@ -501,7 +501,9 @@ class RoushEndpoint:
             self.endpoint = os.environ.get('ROUSH_ENDPOINT',
                                            'http://localhost:8080')
         if user is None and password is None:
-            user, password = get_auth_from_uri(self.endpoint)
+            user, password, endpoint = get_auth_from_uri(self.endpoint)
+            # some versions of requests don't like user:pass in uris
+            self.endpoint = endpoint
 
         self.requests = Requester(cert, roush_ca, user, password)
 
@@ -956,11 +958,13 @@ def get_auth_from_uri(s):
         if -1 in (netloc_idx, at_idx, split_idx) or not (
                 netloc_idx < split_idx
                 and split_idx < at_idx):
-            return (None, None)
+            return (None, None, s)
         else:
-            return (s[netloc_idx:split_idx], s[split_idx + 1: at_idx])
+            return (s[netloc_idx:split_idx],
+                    s[split_idx + 1: at_idx],
+                    s[:netloc_idx] + s[at_idx + 1:])
     except Exception:
-        return (None, None)
+        return (None, None, s)
 
 
 def main():
