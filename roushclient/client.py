@@ -497,9 +497,12 @@ class RoushEndpoint:
                  interactive=False):
         self.endpoint = endpoint
         self.interactive = interactive
-        if not endpoint:
+        if endpoint is None:
             self.endpoint = os.environ.get('ROUSH_ENDPOINT',
                                            'http://localhost:8080')
+        if user is None and password is None:
+            user, password = get_auth_from_uri(self.endpoint)
+
         self.requests = Requester(cert, roush_ca, user, password)
 
         self.logger = logging.getLogger('roush.endpoint')
@@ -508,6 +511,8 @@ class RoushEndpoint:
         try:
             r = self.requests.get('%s/schema' % self.endpoint)
         except requests.exceptions.ConnectionError as e:
+            if r.status_code == 401:
+                r.raise_for_status()
             self.logger.error(str(e))
             self.logger.error('Could not connect to endpoint %s/schema' % (
                 self.endpoint))
@@ -940,6 +945,21 @@ def op_helper(obj, op, uopts, **payload):
         else:
             o = RoushObject
         return lambda: getattr(o, op)(**payload)
+
+
+def get_auth_from_uri(s):
+    try:
+        netloc_idx = s.find("://") + 3
+        at_idx = s.find("@")
+        split_idx = s[netloc_idx:].find(":") + netloc_idx
+        if -1 in (netloc_idx, at_idx, split_idx) or not (
+                netloc_idx < split_idx
+                and split_idx < at_idx):
+            return (None, None)
+        else:
+            return (s[netloc_idx:split_idx], s[split_idx + 1: at_idx])
+    except Exception:
+        return (None, None)
 
 
 def main():
