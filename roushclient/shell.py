@@ -92,10 +92,10 @@ class RoushShell():
             desc = callback.__doc__ or ''
 
             type_parser = type_parsers.add_parser(singularize(obj_type),
-                                              help='%s actions' %
-                                                   singularize(obj_type),
-                                              description=desc,
-                                              )
+                                                  help='%s actions' %
+                                                  singularize(obj_type),
+                                                  description=desc,
+                                                  )
 
             #"action" clashses with the action attribute of some object types
             #for example task.action, so the action arg is stored as cli_action
@@ -108,9 +108,9 @@ class RoushShell():
                             actions[action]['applies_to']:
                         continue
 
-                action_parser = action_parsers.add_parser(action,
-                    help=actions[action]['description'] %
-                        singularize(obj_type)
+                action_parser = action_parsers.add_parser(
+                    action,
+                    help=actions[action]['description'] % singularize(obj_type)
                 )
 
                 action_args = actions[action]['args']
