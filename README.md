@@ -47,7 +47,9 @@ Using roushcli
 **Get help:**
 
   roushcli --help
+
   roushcli node --help
+
   roushcli node create --help
 
 **Show all nodes:**
