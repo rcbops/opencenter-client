@@ -25,8 +25,8 @@ class RoushShell():
         if 'ROUSH_ENDPOINT' in os.environ:
             endpoint_url = os.environ['ROUSH_ENDPOINT']
         else:
-            self.logger.warn("ROUSH_ENDPOINT not found in environment, using %s"\
-                  % default_endpoint)
+            self.logger.warn("ROUSH_ENDPOINT not found in environment"
+                             ", using %s" % default_endpoint)
             endpoint_url = default_endpoint
 
         self.endpoint = RoushEndpoint(endpoint=endpoint_url)
@@ -40,14 +40,16 @@ class RoushShell():
                             help='Print more verbose output')
 
         #chicken-egg issues. Parser requires schema, which reuquires endpoint..
-        #parser.add_argument('--endpoint',help="Roush endpoint URL.",metavar="URL")
+        #parser.add_argument('--endpoint',
+        #                    help="Roush endpoint URL.",metavar="URL")
 
         return parser
 
     def get_subcommand_parser(self):
         parser = self.get_base_parser()
         self.subcommands = {}
-        type_parsers = parser.add_subparsers(help='subcommands',dest='cli_noun')
+        type_parsers = parser.add_subparsers(help='subcommands',
+                                             dest='cli_noun')
         self._construct_parse_tree(type_parsers)
         return parser
 
@@ -102,7 +104,8 @@ class RoushShell():
 
                 #skip this action if it doesn't apply to this obj_type.
                 if 'applies_to' in actions[action]:
-                    if singularize(obj_type) not in actions[action]['applies_to']:
+                    if singularize(obj_type) not in \
+                            actions[action]['applies_to']:
                         continue
 
                 action_parser = action_parsers.add_parser(action,
@@ -120,7 +123,8 @@ class RoushShell():
                         opt_string = '--'
                         if arg['required']:
                             opt_string = ''
-                        action_parser.add_argument('%s%s' % (opt_string, arg_name))
+                        action_parser.add_argument('%s%s' %
+                                                   (opt_string, arg_name))
                 else:
                     for arg in action_args:
                         action_parser.add_argument(arg)
