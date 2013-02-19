@@ -44,13 +44,19 @@ or:
 Using roushcli
 ==
 
+**Get help:**
+
+  roushcli --help
+  roushcli node --help
+  roushcli node create --help
+
 **Show all nodes:**
 
     roushcli node list
 
 **Show details about a particular node:**
 
-    roushcli node show --id=<node id>
+    roushcli node show <node id>
 
 **Show all adventures:**
 
@@ -58,7 +64,7 @@ Using roushcli
 
 **Show details about a particular adventure:**
 
-    roushcli adventure show --id=<adventure id>
+    roushcli adventure show <adventure id>
 
 **Show adventures a node can execute:**
 
@@ -66,7 +72,7 @@ Using roushcli
 
 **Execute an adventure on a particular node:**
 
-    TBD
+    roushcli adventure execute <node id> <adventure id>
 
 **Show all tasks:**
 
@@ -74,7 +80,7 @@ Using roushcli
 
 **Show details about a particular task:**
 
-    roushcli task show --id=<task id>
+    roushcli task show <task id>
 
 **Override roush server endpoint:**
 
