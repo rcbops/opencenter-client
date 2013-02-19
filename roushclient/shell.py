@@ -3,12 +3,33 @@ import argparse
 import os
 import sys
 import json
+import logging
 
-from client import RoushEndpoint
+from client import RoushEndpoint, singularize, pluralize
 
 
 class RoushShell():
-    endpoint = RoushEndpoint(None)
+    def __init__(self):
+
+        #setup root logger
+        self.logger = logging.getLogger('roush')
+
+        if "ROUSH_CLIENT_DEBUG" in os.environ:
+            self.logger.setLevel(logging.DEBUG)
+
+        if not self.logger.handlers:
+            self.logger.addHandler(logging.StreamHandler(sys.stderr))
+
+        #Warn if using default endpoint.
+        default_endpoint = 'http://localhost:8080'
+        if 'ROUSH_ENDPOINT' in os.environ:
+            endpoint_url = os.environ['ROUSH_ENDPOINT']
+        else:
+            self.logger.warn("ROUSH_ENDPOINT not found in environment"
+                             ", using %s" % default_endpoint)
+            endpoint_url = default_endpoint
+
+        self.endpoint = RoushEndpoint(endpoint=endpoint_url)
 
     def get_base_parser(self):
         parser = argparse.ArgumentParser(description='Roush CLI',
@@ -16,70 +37,112 @@ class RoushShell():
                                          )
         parser.add_argument('-v', '--verbose',
                             action='store_true',
-                            help='Print more verbose output'
-                            )
+                            help='Print more verbose output')
+
+        #chicken-egg issues. Parser requires schema, which reuquires endpoint..
+        #parser.add_argument('--endpoint',
+        #                    help="Roush endpoint URL.",metavar="URL")
 
         return parser
 
     def get_subcommand_parser(self):
         parser = self.get_base_parser()
         self.subcommands = {}
-        subparsers = parser.add_subparsers(help='subcommands')
-        self._get_actions(subparsers)
+        type_parsers = parser.add_subparsers(help='subcommands',
+                                             dest='cli_noun')
+        self._construct_parse_tree(type_parsers)
         return parser
 
-    def _get_actions(self, subparsers):
-        commands = self.endpoint._object_lists.keys()
+    def _construct_parse_tree(self, type_parsers):
+        """
+        obj_type = object type eg Task, Adventure
+        action = command eg create, delete
+        argument = required, or optional argument.
+        """
+        obj_types = self.endpoint._object_lists.keys()
 
-        for command in commands:
-            schema = self.endpoint.get_schema(command[:-1])
+        #information about each action
+        actions = {
+            'list': {'description': 'list all %ss',
+                     'args': [],
+                     },
+            'show': {'description': 'show the properties of a %s',
+                     'args': ['id']
+                     },
+            'delete': {'description': 'remove a %s',
+                       'args': ['id']
+                       },
+            'create': {'description': 'create a %s',
+                       'args': ['schema']
+                       },
+            # 'filter',
+            'update': {'description': 'modify a %s',
+                       'args': ['schema']
+                       },
+            'execute': {'description': 'execute a %s',
+                        'args': ['node_id', 'adventure_id'],
+                        'applies_to': ['adventure']
+                        }
+        }
+
+        for obj_type in obj_types:
+            schema = self.endpoint.get_schema(singularize(obj_type))
             arguments = schema.field_schema
-            callback = getattr(self.endpoint, command)
+            callback = getattr(self.endpoint, obj_type)
             desc = callback.__doc__ or ''
-            help = desc.strip().split('\n')[0]
 
-            subparser = subparsers.add_parser(command[:-1],
-                                              help='%s actions' % command[:-1]
-                                              )
+            type_parser = type_parsers.add_parser(singularize(obj_type),
+                                                  help='%s actions' %
+                                                  singularize(obj_type),
+                                                  description=desc,
+                                                  )
 
-            subparser.add_argument(command,
-                                   choices=['list',
-                                   'show',
-                                   'delete',
-                                   'create',
-                                   # 'filter',
-                                   'update'],
-                                   help='available commands'
-                                   )
+            #"action" clashses with the action attribute of some object types
+            #for example task.action, so the action arg is stored as cli_action
+            action_parsers = type_parser.add_subparsers(dest='cli_action')
+            for action in actions:
 
-            for arg in arguments:
-                # print arguments[arg]['type']
-                subparser.add_argument('--%s' % arg)
-            self.subcommands[command] = subparser
-            subparser.set_defaults(func=callback)
+                #skip this action if it doesn't apply to this obj_type.
+                if 'applies_to' in actions[action]:
+                    if singularize(obj_type) not in \
+                            actions[action]['applies_to']:
+                        continue
+
+                action_parser = action_parsers.add_parser(
+                    action,
+                    help=actions[action]['description'] % singularize(obj_type)
+                )
+
+                action_args = actions[action]['args']
+                if action_args == ['schema']:
+                    for arg_name, arg in arguments.items():
+
+                        #id should be allocated rather than specified
+                        if action == "create" and arg_name == 'id':
+                            continue
+                        opt_string = '--'
+                        if arg['required']:
+                            opt_string = ''
+                        action_parser.add_argument('%s%s' %
+                                                   (opt_string, arg_name))
+                else:
+                    for arg in action_args:
+                        action_parser.add_argument(arg)
+            self.subcommands[obj_type] = type_parser
+            type_parser.set_defaults(func=callback)
 
     def get_field_schema(self, command):
         obj = getattr(self.endpoint, command)
-        schema = self.endpoint.get_schema(command[:-1])
+        schema = self.endpoint.get_schema(singularize(command))
         fields = schema.field_schema
         return fields
 
     def do_show(self, args, obj):
-        if not args.id:
-            print ("--id <integer> is required for the show command")
-            return 0
-        try:
-            id = args.id
-        except Exception, e:
-            print "%s" % e
-
+        id = args.id
         act = getattr(self.endpoint, obj)
         print act[id]
 
     def do_create(self, args, obj):
-        if not args.name:
-            print ("--name <string> is required for the create command")
-            return 0
         field_schema = self.get_field_schema(obj)
         arguments = []
         for field in field_schema:
@@ -88,60 +151,51 @@ class RoushShell():
         ver = dict([(k, v) for k, v in args._get_kwargs()
                    if k in arguments and v is not None])
         act = getattr(self.endpoint, obj)
-        try:
-            new_node = act.create(**ver)
-            new_node.save()
-        except Exception, e:
-            print "%s" % e
+        new_node = act.create(**ver)
+        new_node.save()
 
     def do_delete(self, args, obj):
-        if not args.id:
-            print ("--id <integer is required for the delete command")
-            return 0
         try:
             id = args.id
-        except Exception, e:
-            print "%s" % e
-
-        act = getattr(self.endpoint, obj)
-        try:
+            act = getattr(self.endpoint, obj)
             act[id].delete()
+            print "%s %s has been deleted." % tuple([obj, id])
         except Exception, e:
             print "%s" % e
 
-        print "%s %s has been deleted." % tuple([obj, id])
+    def do_execute(self, args, obj):
+        act = getattr(self.endpoint, obj)
+        act[args.adventure_id].execute(node=args.node_id)
 
     def main(self, argv):
-        # setup
         parser = self.get_subcommand_parser()
         args = parser.parse_args(argv)
 
-        for command in self.subcommands:
-            try:
-                action = getattr(args, command)
-                obj = command
-            except:
-                continue
+        if args.cli_action == "list":
+            print getattr(self.endpoint, pluralize(args.cli_noun))
 
-        if action == "list":
-            print getattr(self.endpoint, obj)
+        if args.cli_action == "show":
+            self.do_show(args, pluralize(args.cli_noun))
 
-        if action == "show":
-            self.do_show(args, obj)
+        if args.cli_action == "create":
+            self.do_create(args, pluralize(args.cli_noun))
 
-        if action == "create":
-            self.do_create(args, obj)
+        if args.cli_action == "delete":
+            self.do_delete(args, pluralize(args.cli_noun))
 
-        if action == "delete":
-            self.do_delete(args, obj)
+        if args.cli_action == "execute":
+            self.do_execute(args, pluralize(args.cli_noun))
 
 
 def main():
-    try:
+    if 'ROUSH_CLIENT_DEBUG' in os.environ:
         RoushShell().main(sys.argv[1:])
-    except Exception, e:
-        print >> sys.stderr, e
-        sys.exit(1)
+    else:
+        try:
+            RoushShell().main(sys.argv[1:])
+        except Exception, e:
+            print >> sys.stderr, e
+            sys.exit(1)
 
 if __name__ == '__main__':
     main()
