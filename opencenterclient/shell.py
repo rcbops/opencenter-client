@@ -67,7 +67,7 @@ class OpenCenterShell():
                      'args': [],
                      },
             'show': {'description': 'show the properties of a %s',
-                     'args': ['id']
+                     'args': ['--id']
                      },
             'delete': {'description': 'remove a %s',
                        'args': ['id']
@@ -175,7 +175,13 @@ class OpenCenterShell():
             print getattr(self.endpoint, pluralize(args.cli_noun))
 
         if args.cli_action == "show":
-            self.do_show(args, pluralize(args.cli_noun))
+            if args.id is not None:
+                #has ID, show individual item
+                self.do_show(args, pluralize(args.cli_noun))
+            else:
+                #no ID specified, list all.
+                print getattr(self.endpoint, pluralize(args.cli_noun))
+
 
         if args.cli_action == "create":
             self.do_create(args, pluralize(args.cli_noun))
