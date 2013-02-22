@@ -182,7 +182,6 @@ class OpenCenterShell():
                 #no ID specified, list all.
                 print getattr(self.endpoint, pluralize(args.cli_noun))
 
-
         if args.cli_action == "create":
             self.do_create(args, pluralize(args.cli_noun))
 
