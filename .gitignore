@@ -4,4 +4,4 @@
 *.pyc
 build/
 dist/
-roush_client.egg-info/
+*.egg-info/
