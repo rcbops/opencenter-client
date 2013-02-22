@@ -33,38 +33,38 @@ Using r2 cli
 
     r2 task show <task id>
 
-**Override roush server endpoint:**
+**Override opencenter server endpoint:**
 
-    ROUSH_ENDPOINT=http://<roush server>:8080 r2 node show
+    OPENCENTER_ENDPOINT=http://<opencenter server>:8080 r2 node show
 
 or:
 
-    r2 node show --endpoint=http://<roush server>:8080
+    r2 node show --endpoint=http://<opencenter server>:8080
 
-Using roushcli
+Using opencentercli
 ==
 
 **Get help:**
 
-    roushcli --help
-    roushcli node --help
-    roushcli node create --help
+    opencentercli --help
+    opencentercli node --help
+    opencentercli node create --help
 
 **Show all nodes:**
 
-    roushcli node list
+    opencentercli node list
 
 **Show details about a particular node:**
 
-    roushcli node show <node id>
+    opencentercli node show <node id>
 
 **Show all adventures:**
 
-    roushcli adventure list
+    opencentercli adventure list
 
 **Show details about a particular adventure:**
 
-    roushcli adventure show <adventure id>
+    opencentercli adventure show <adventure id>
 
 **Show adventures a node can execute:**
 
@@ -72,16 +72,16 @@ Using roushcli
 
 **Execute an adventure on a particular node:**
 
-    roushcli adventure execute <node id> <adventure id>
+    opencentercli adventure execute <node id> <adventure id>
 
 **Show all tasks:**
 
-    roushcli task list
+    opencentercli task list
 
 **Show details about a particular task:**
 
-    roushcli task show <task id>
+    opencentercli task show <task id>
 
-**Override roush server endpoint:**
+**Override opencenter server endpoint:**
 
-    ROUSH_ENDPOINT=http://<roush server>:8080 roushcli node list
+    OPENCENTER_ENDPOINT=http://<opencenter server>:8080 opencentercli node list

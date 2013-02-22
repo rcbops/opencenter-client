@@ -5,11 +5,11 @@ from setuptools import setup, find_packages
 requirements = ['requests<=1.1.0']
 
 setup(
-    name='roush-client',
+    name='opencenter-client',
     version='1.0.0',
-    description='Client library for Roush API',
+    description='Client library for OpenCenter API',
     author='Rackspace US, Inc.',
-    url='https://github.com/rcbops/roush-client.git',
+    url='https://github.com/rcbops/opencenter-client.git',
     license='Apache2',
     packages=find_packages(exclude=['run_tests.sh', 'tests', 'tests.*']),
     classifiers=[
@@ -23,7 +23,7 @@ setup(
     ],
     install_requires=requirements,
     entry_points={
-        'console_scripts': ['r2 = roushclient.client:main',
-                            'roushcli = roushclient.shell:main']
+        'console_scripts': ['r2 = opencenterclient.client:main',
+                            'opencentercli = opencenterclient.shell:main']
     }
 )

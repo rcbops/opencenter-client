@@ -1,14 +1,14 @@
 %define ver 1
 
-Name:		roush-client
+Name:		opencenter-client
 Version:	1.0
 Release:	%{ver}%{?dist}
-Summary:	Client library for Roush API
+Summary:	Client library for OpenCenter API
 
 Group:		System
 License:	None
-URL:		https://github.com/rcbops/roush-client
-Source0:	roush-client-1.0.tgz
+URL:		https://github.com/rcbops/opencenter-client
+Source0:	opencenter-client-1.0.tgz
 Source1:	local.conf
 
 BuildRequires:  python-setuptools
@@ -19,7 +19,7 @@ BuildArch: noarch
 
 
 %description
-Client library for Roush API
+Client library for OpenCenter API
 
 %prep
 %setup -q -n %{name}-%{version}
@@ -37,10 +37,10 @@ install -m 644 $RPM_SOURCE_DIR/local.conf $RPM_BUILD_ROOT/etc/local.conf
 %files
 %config(noreplace) /etc/local.conf
 %defattr(-,root,root)
-%{python_sitelib}/roush_client*
-%{python_sitelib}/roushclient*
+%{python_sitelib}/opencenter_client*
+%{python_sitelib}/opencenterclient*
 /usr/bin/r2
-/usr/bin/roush
+/usr/bin/opencenter
 %doc
 
 %clean

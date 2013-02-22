@@ -24,12 +24,13 @@ def ensure_json(f):
 
 
 class Requester(object):
-    def __init__(self, cert=None, roush_ca=None, user=None, password=None):
+    def __init__(self, cert=None, opencenter_ca=None,
+                 user=None, password=None):
         if not cert:
-            cert = os.environ.get('ROUSH_CERT', cert)
-        if not roush_ca:
-            roush_ca = os.environ.get('ROUSH_CA', roush_ca)
-        self.verify = not roush_ca is None
+            cert = os.environ.get('OPENCENTER_CERT', cert)
+        if not opencenter_ca:
+            opencenter_ca = os.environ.get('OPENCENTER_CA', opencenter_ca)
+        self.verify = not opencenter_ca is None
         self.cert = cert
         self.requests = requests
         if user is not None and password is not None:
@@ -323,7 +324,7 @@ class LazyDict:
         self.filter_string = filter_string
         self.schema = None
         self.dirty = False
-        self.logger = logging.getLogger('roush.endpoint')
+        self.logger = logging.getLogger('opencenter.endpoint')
 
     def __len__(self):
         return len(self.dict)
@@ -345,7 +346,7 @@ class LazyDict:
 
         self._maybe_refresh_schema()
 
-        type_class = "Roush%s" % self.object_type.capitalize()
+        type_class = "OpenCenter%s" % self.object_type.capitalize()
         if type_class in globals():
             obj = globals()[type_class](endpoint=self.endpoint, **kwargs)
         else:
@@ -353,9 +354,9 @@ class LazyDict:
             # we won't be able to do anything other
             # than crud options, but that's better
             # than nothing.
-            obj = RoushObject(object_type=self.object_type,
-                              endpoint=self.endpoint,
-                              **kwargs)
+            obj = OpenCenterObject(object_type=self.object_type,
+                                   endpoint=self.endpoint,
+                                   **kwargs)
         return obj
 
     def items(self):
@@ -400,18 +401,18 @@ class LazyDict:
 
     def __getitem__(self, key):
         if not key in self.dict:
-            type_class = "Roush%s" % self.object_type.capitalize()
+            type_class = "OpenCenter%s" % self.object_type.capitalize()
             if type_class in globals():
                 value = globals()[type_class](endpoint=self.endpoint)
             else:
                 # make a generic
-                value = RoushObject(object_type=self.object_type,
-                                    endpoint=self.endpoint)
+                value = OpenCenterObject(object_type=self.object_type,
+                                         endpoint=self.endpoint)
             value.id = key
             if value._request_get():
                 self.dict[key] = value
             else:
-                raise KeyError("Roush%s id '%s' not found" %
+                raise KeyError("OpenCenter%s id '%s' not found" %
                                (self.object_type.capitalize(), key))
             return value
         else:
@@ -460,13 +461,13 @@ class LazyDict:
                     headers={'content-type': 'application/json'})
 
             for item in r.json[pluralize(self.object_type)]:
-                type_class = "Roush%s" % self.object_type.capitalize()
+                type_class = "OpenCenter%s" % self.object_type.capitalize()
                 if type_class in globals():
                     obj = globals()[type_class](endpoint=self.endpoint)
                 else:
                     # fall back to generic
-                    obj = RoushObject(endpoint=self.endpoint,
-                                      object_type=self.object_type)
+                    obj = OpenCenterObject(endpoint=self.endpoint,
+                                           object_type=self.object_type)
                 obj.attributes = item
                 self.dict[obj.id] = obj
             self.refreshed = True
@@ -490,24 +491,24 @@ class LazyDict:
         return self.dict.values()
 
 
-class RoushEndpoint:
-    def __init__(self, endpoint=None, cert=None, roush_ca=None,
+class OpenCenterEndpoint:
+    def __init__(self, endpoint=None, cert=None, opencenter_ca=None,
                  user=None,
                  password=None,
                  interactive=False):
         self.endpoint = endpoint
         self.interactive = interactive
         if endpoint is None:
-            self.endpoint = os.environ.get('ROUSH_ENDPOINT',
+            self.endpoint = os.environ.get('OPENCENTER_ENDPOINT',
                                            'http://localhost:8080')
         if user is None and password is None:
             user, password, endpoint = get_auth_from_uri(self.endpoint)
             # some versions of requests don't like user:pass in uris
             self.endpoint = endpoint
 
-        self.requests = Requester(cert, roush_ca, user, password)
+        self.requests = Requester(cert, opencenter_ca, user, password)
 
-        self.logger = logging.getLogger('roush.endpoint')
+        self.logger = logging.getLogger('opencenter.endpoint')
         self.schemas = {}
 
         try:
@@ -539,7 +540,7 @@ class RoushEndpoint:
 
     def __getattr__(self, name):
         if not name in self._object_lists:
-            raise AttributeError("'RoushEndpoint' has no attribute '%s'" %
+            raise AttributeError("'OpenCenterEndpoint' has no attribute '%s'" %
                                  name)
         else:
             if not self._object_lists[name]:
@@ -562,7 +563,7 @@ class RoushEndpoint:
         return self.schemas[object_type]
 
 
-class RoushObject(object):
+class OpenCenterObject(object):
     def __init__(self,
                  object_type=None,
                  endpoint=None, **kwargs):
@@ -582,7 +583,7 @@ class RoushObject(object):
         for k, v in kwargs.items():
             setattr(self, k, v)
 
-        self.logger = logging.getLogger('roush.%s' % object_type)
+        self.logger = logging.getLogger('opencenter.%s' % object_type)
 
     def __getattr__(self, name):
         if self.schema.has_field(name):
@@ -599,7 +600,7 @@ class RoushObject(object):
             return self.synthesized_fields[name]()
 
         # uh oh.
-        raise AttributeError("'Roush%s' object has no attribute '%s'" %
+        raise AttributeError("'OpenCenter%s' object has no attribute '%s'" %
                              (self.object_type.capitalize(), name))
 
     def __getitem__(self, name):
@@ -628,8 +629,8 @@ class RoushObject(object):
                       'schema']:
             object.__setattr__(self, name, value)
         else:
-            raise AttributeError("'Roush%s' object has no attribute '%s'" %
-                                 (self.object_type.capitalize(), name))
+            raise AttributeError("'OpenCenter%s' object has no attribute '%s'"
+                                 % (self.object_type.capitalize(), name))
 
     def _cross_object(self, foreign_table):
         if self.schema.has_fk_for(foreign_table):
@@ -804,9 +805,9 @@ class RoushObject(object):
         return self._request('delete')
 
 
-class RoushTask(RoushObject):
+class OpenCenterTask(OpenCenterObject):
     def __init__(self, **kwargs):
-        super(RoushTask, self).__init__('task', **kwargs)
+        super(OpenCenterTask, self).__init__('task', **kwargs)
         self.synthesized_fields = {'success': lambda: self._success(),
                                    'running': lambda: self._running(),
                                    'complete': lambda: self._complete(),
@@ -833,9 +834,9 @@ class RoushTask(RoushObject):
         return self._request('get', url=url).json['log']
 
 
-class RoushAdventure(RoushObject):
+class OpenCenterAdventure(OpenCenterObject):
     def __init__(self, **kwargs):
-        super(RoushAdventure, self).__init__('adventure', **kwargs)
+        super(OpenCenterAdventure, self).__init__('adventure', **kwargs)
 
     def execute(self, plan_args=None, **kwargs):
         url = urlparse.urljoin(self._url_for() + '/', 'execute')
@@ -843,9 +844,9 @@ class RoushAdventure(RoushObject):
                              payload=kwargs)
 
 
-class RoushNode(RoushObject):
+class OpenCenterNode(OpenCenterObject):
     def __init__(self, **kwargs):
-        super(RoushNode, self).__init__('node', **kwargs)
+        super(OpenCenterNode, self).__init__('node', **kwargs)
         self.synthesized_fields = {'tasks': lambda: self._tasks(),
                                    'task': lambda: self._task(),
                                    'task_blocking': lambda: self._task(True),
@@ -902,7 +903,7 @@ class ClientApp:
             endpoint = payload['endpoint']
             del payload['endpoint']
 
-        ep = RoushEndpoint(endpoint, interactive=True)
+        ep = OpenCenterEndpoint(endpoint, interactive=True)
 
         if uopts[0] == 'shell':
             code.interact(local=locals())
@@ -942,11 +943,11 @@ def op_helper(obj, op, uopts, **payload):
         return lambda: getattr(obj[uopts.pop()], op)(**payload)
     else:
         # this must be a class method
-        type_class = "Roush%s" % obj.object_type.capitalize()
+        type_class = "OpenCenter%s" % obj.object_type.capitalize()
         if type_class in globals():
             o = globals()[type_class](endpoint=obj.endpoint, **payload)
         else:
-            o = RoushObject
+            o = OpenCenterObject
         return lambda: getattr(o, op)(**payload)
 
 

@@ -38,5 +38,5 @@ override_dh_auto_clean:
 # override_dh_auto_build:
 
 # override_dh_auto_install:
-# 	python setup.py install --root=debian/roush-agent --prefix=/usr
+# 	python setup.py install --root=debian/opencenter-agent --prefix=/usr
 # 	ls -lR debian

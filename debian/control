@@ -1,4 +1,4 @@
-Source: roush-client
+Source: opencenter-client
 Section: net
 Priority: optional
 Maintainer: Ron Pedde <ron@pedde.com>
@@ -10,10 +10,10 @@ Build-Depends: debhelper (>= 7.0.50~),
  python-cliapp
 Standards-Version: 3.9.1
 XS-Python-Version: >= 2.6
-Homepage: https://github.com/galstrom21/roush-agent
+Homepage: https://github.com/galstrom21/opencenter-agent
 XCBS-RCB-Component: rcb-utils
 
-Package: roush-client
+Package: opencenter-client
 Architecture: all
 Section: python
 Depends: ${python:Depends}, ${misc:Depends},
@@ -21,4 +21,4 @@ Depends: ${python:Depends}, ${misc:Depends},
  python-requests,
  python-cliapp
 Provides: ${python:Provides}
-Description: command line client for roush server
+Description: command line client for opencenter server
