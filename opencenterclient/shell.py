@@ -5,16 +5,16 @@ import sys
 import json
 import logging
 
-from client import RoushEndpoint, singularize, pluralize
+from client import OpenCenterEndpoint, singularize, pluralize
 
 
-class RoushShell():
+class OpenCenterShell():
     def __init__(self):
 
         #setup root logger
-        self.logger = logging.getLogger('roush')
+        self.logger = logging.getLogger('opencenter')
 
-        if "ROUSH_CLIENT_DEBUG" in os.environ:
+        if "OPENCENTER_CLIENT_DEBUG" in os.environ:
             self.logger.setLevel(logging.DEBUG)
 
         if not self.logger.handlers:
@@ -22,18 +22,18 @@ class RoushShell():
 
         #Warn if using default endpoint.
         default_endpoint = 'http://localhost:8080'
-        if 'ROUSH_ENDPOINT' in os.environ:
-            endpoint_url = os.environ['ROUSH_ENDPOINT']
+        if 'OPENCENTER_ENDPOINT' in os.environ:
+            endpoint_url = os.environ['OPENCENTER_ENDPOINT']
         else:
-            self.logger.warn("ROUSH_ENDPOINT not found in environment"
+            self.logger.warn("OPENCENTER_ENDPOINT not found in environment"
                              ", using %s" % default_endpoint)
             endpoint_url = default_endpoint
 
-        self.endpoint = RoushEndpoint(endpoint=endpoint_url)
+        self.endpoint = OpenCenterEndpoint(endpoint=endpoint_url)
 
     def get_base_parser(self):
-        parser = argparse.ArgumentParser(description='Roush CLI',
-                                         prog='roushcli',
+        parser = argparse.ArgumentParser(description='OpenCenter CLI',
+                                         prog='opencentercli',
                                          )
         parser.add_argument('-v', '--verbose',
                             action='store_true',
@@ -41,7 +41,7 @@ class RoushShell():
 
         #chicken-egg issues. Parser requires schema, which reuquires endpoint..
         #parser.add_argument('--endpoint',
-        #                    help="Roush endpoint URL.",metavar="URL")
+        #                    help="OpenCenter endpoint URL.",metavar="URL")
 
         return parser
 
@@ -188,11 +188,11 @@ class RoushShell():
 
 
 def main():
-    if 'ROUSH_CLIENT_DEBUG' in os.environ:
-        RoushShell().main(sys.argv[1:])
+    if 'OPENCENTER_CLIENT_DEBUG' in os.environ:
+        OpenCenterShell().main(sys.argv[1:])
     else:
         try:
-            RoushShell().main(sys.argv[1:])
+            OpenCenterShell().main(sys.argv[1:])
         except Exception, e:
             print >> sys.stderr, e
             sys.exit(1)

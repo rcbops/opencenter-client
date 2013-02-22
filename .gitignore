@@ -1,4 +1,5 @@
 .venv
+*bak
 *.swp
 *.pyc
 build/

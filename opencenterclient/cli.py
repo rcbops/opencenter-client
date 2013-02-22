@@ -9,9 +9,9 @@ import time
 from pprint import pprint
 
 
-class RoushCLI(cliapp.Application):
+class OpenCenterCLI(cliapp.Application):
     def add_settings(self):
-        self.settings.string(['api_endpoint'], 'URI for Roush Endpoint',
+        self.settings.string(['api_endpoint'], 'URI for OpenCenter Endpoint',
                              default='http://0.0.0.0:8080')
         self.settings.boolean(['poll'],
                               'Polls a task after it has been created ' +
@@ -339,6 +339,6 @@ class RoushCLI(cliapp.Application):
 
 
 def main():
-    app = RoushCLI(version='1.0.0')
-    app.settings.config_files = ['~/.roushrc']
+    app = OpenCenterCLI(version='1.0.0')
+    app.settings.config_files = ['~/.opencenterrc']
     app.run()
