@@ -29,7 +29,8 @@ class OpenCenterShell():
                              ", using %s" % default_endpoint)
             endpoint_url = default_endpoint
 
-        self.endpoint = OpenCenterEndpoint(endpoint=endpoint_url)
+        self.endpoint = OpenCenterEndpoint(endpoint=endpoint_url,
+                                           interactive=True)
 
     def get_base_parser(self):
         parser = argparse.ArgumentParser(description='OpenCenter CLI',
