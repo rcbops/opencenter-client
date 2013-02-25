@@ -68,7 +68,7 @@ Using opencentercli
 
 **Show adventures a node can execute:**
 
-    TBD
+    opencentrecli adventures <node id>
 
 **Execute an adventure on a particular node:**
 
@@ -81,6 +81,10 @@ Using opencentercli
 **Show details about a particular task:**
 
     opencentercli task show <task id>
+
+**List items that match a filter**
+
+    opencentercli node filter 'id=6'
 
 **Override opencenter server endpoint:**
 
