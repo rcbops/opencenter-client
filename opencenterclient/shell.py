@@ -83,9 +83,16 @@ class OpenCenterShell():
                         'args': ['node_id', 'adventure_id'],
                         'applies_to': ['adventure']
                         },
-            'filter': {'description': 'list %ss that match filter-string',
+            'filter': {'description': ('list %ss that match filter-string. '
+                                       'Example filter string: '
+                                       'name=workspace'),
                        'args': ['filter_string']
-                       }
+                       },
+            'adventures': {'description': ('List currently available '
+                                           'adventures for a %s'),
+                           'args': ['id'],
+                           'applies_to': ['node']
+                           },
         }
 
         for obj_type in obj_types:
@@ -145,6 +152,10 @@ class OpenCenterShell():
         act = getattr(self.endpoint, obj)
         print act[id]
 
+    def do_adventures(self, args, obj):
+        act = getattr(self.endpoint, obj)
+        print act[args.id]._adventures()
+
     def do_filter(self, args, obj):
         act = getattr(self.endpoint, obj)
         print act.filter(args.filter_string)
@@ -200,6 +211,9 @@ class OpenCenterShell():
 
         if args.cli_action == "filter":
             self.do_filter(args, pluralize(args.cli_noun))
+
+        if args.cli_action == "adventures":
+            self.do_adventures(args, pluralize(args.cli_noun))
 
 
 def main():
