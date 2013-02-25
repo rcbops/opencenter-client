@@ -763,6 +763,9 @@ class OpenCenterObject(object):
 
                 if solved:
                     payload.update({'plan': new_plan})
+                    # really, node_id should be the arg for /plan
+                    if 'node_id' in payload:
+                        payload['node'] = payload['node_id']
 
                     return self._request(
                         'post', url=self.endpoint.endpoint + '/plan/',
