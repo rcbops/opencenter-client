@@ -84,7 +84,8 @@ class OpenCenterShell():
                         'applies_to': ['adventure']
                         },
             'filter': {'description': ('list %ss that match filter-string. '
-                                       'Example filter string: name=workspace'),
+                                       'Example filter string: '
+                                       'name=workspace'),
                        'args': ['filter_string']
                        },
             'adventures': {'description': ('List currently available '
