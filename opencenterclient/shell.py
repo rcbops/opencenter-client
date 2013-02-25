@@ -83,7 +83,8 @@ class OpenCenterShell():
                         'args': ['node_id', 'adventure_id'],
                         'applies_to': ['adventure']
                         },
-            'filter': {'description': 'list %ss that match filter-string',
+            'filter': {'description': ('list %ss that match filter-string. '
+                                       'Example filter string: name=workspace'),
                        'args': ['filter_string']
                        }
         }
