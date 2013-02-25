@@ -82,7 +82,10 @@ class OpenCenterShell():
             'execute': {'description': 'execute a %s',
                         'args': ['node_id', 'adventure_id'],
                         'applies_to': ['adventure']
-                        }
+                        },
+            'filter': {'description': 'list %ss that match filter-string',
+                       'args': ['filter_string']
+                       }
         }
 
         for obj_type in obj_types:
@@ -142,6 +145,10 @@ class OpenCenterShell():
         act = getattr(self.endpoint, obj)
         print act[id]
 
+    def do_filter(self, args, obj):
+        act = getattr(self.endpoint, obj)
+        print act.filter(args.filter_string)
+
     def do_create(self, args, obj):
         field_schema = self.get_field_schema(obj)
         arguments = []
@@ -190,6 +197,9 @@ class OpenCenterShell():
 
         if args.cli_action == "execute":
             self.do_execute(args, pluralize(args.cli_noun))
+
+        if args.cli_action == "filter":
+            self.do_filter(args, pluralize(args.cli_noun))
 
 
 def main():
