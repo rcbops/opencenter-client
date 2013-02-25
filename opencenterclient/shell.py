@@ -75,7 +75,6 @@ class OpenCenterShell():
             'create': {'description': 'create a %s',
                        'args': ['schema']
                        },
-            # 'filter',
             'update': {'description': 'modify a %s',
                        'args': ['schema']
                        },
@@ -94,6 +93,29 @@ class OpenCenterShell():
                            'applies_to': ['node']
                            },
         }
+
+        #Hash for adding descriptions to specific arguments.
+        descriptions = {
+            'adventures': {
+                'create': {
+                    'dsl': ('Domain Specific Languague for defining '
+                            ' adventures. For example: '
+                            '[ { "ns": {}, "primitive": "download_cookbooks" '
+                            '} ]')
+                }
+
+            }
+        }
+
+        def _get_help(obj, action, arg):
+            """Function for retrieving help values from the descriptions
+            hash if they exist."""
+            arg_help = None
+            if obj in descriptions\
+                    and action in descriptions[obj]\
+                    and arg in descriptions[obj][action]:
+                arg_help = descriptions[obj][action][arg]
+            return arg_help
 
         for obj_type in obj_types:
             schema = self.endpoint.get_schema(singularize(obj_type))
@@ -123,9 +145,18 @@ class OpenCenterShell():
                     help=actions[action]['description'] % singularize(obj_type)
                 )
 
+                #check the descriptions hash for argument help
+                arg_help = None
+                if obj_type in descriptions and action in \
+                        descriptions[obj_type] and arg_name in \
+                        descriptions[obj_type][action]:
+                    arg_help = descriptions[obj_type][action][arg_name]
+
                 action_args = actions[action]['args']
                 if action_args == ['schema']:
                     for arg_name, arg in arguments.items():
+
+                        arg_help = _get_help(obj_type, action, arg_name)
 
                         #id should be allocated rather than specified
                         if action == "create" and arg_name == 'id':
@@ -134,10 +165,12 @@ class OpenCenterShell():
                         if arg['required']:
                             opt_string = ''
                         action_parser.add_argument('%s%s' %
-                                                   (opt_string, arg_name))
+                                                   (opt_string, arg_name),
+                                                   help=arg_help)
                 else:
                     for arg in action_args:
-                        action_parser.add_argument(arg)
+                        arg_help = _get_help(obj_type, action, arg)
+                        action_parser.add_argument(arg, help=arg_help)
             self.subcommands[obj_type] = type_parser
             type_parser.set_defaults(func=callback)
 
