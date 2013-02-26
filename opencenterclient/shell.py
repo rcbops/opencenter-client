@@ -93,9 +93,14 @@ class OpenCenterShell():
                            'args': ['id'],
                            'applies_to': ['node']
                            },
+            'logs': {'description': 'Get output logged by a %s',
+                     'args': ['id'],
+                     'applies_to': ['task']
+                     }
         }
 
-        #Hash for adding descriptions to specific arguments.
+        # Hash for adding descriptions to specific arguments.
+        # Useful for args that have come from the schema.
         descriptions = {
             'adventures': {
                 'create': {
@@ -186,6 +191,11 @@ class OpenCenterShell():
         act = getattr(self.endpoint, obj)
         print act[id]
 
+    def do_logs(self, args, obj):
+        id = args.id
+        act = getattr(self.endpoint, obj)
+        print act[id]._logtail()
+
     def do_adventures(self, args, obj):
         act = getattr(self.endpoint, obj)
         print act[args.id]._adventures()
@@ -248,6 +258,9 @@ class OpenCenterShell():
 
         if args.cli_action == "adventures":
             self.do_adventures(args, pluralize(args.cli_noun))
+
+        if args.cli_action == "logs":
+            self.do_logs(args, pluralize(args.cli_noun))
 
 
 def main():
