@@ -640,7 +640,12 @@ class OpenCenterObject(object):
             if not v:
                 return None
 
-            return self.endpoint[foreign_table][int(v)]
+            try:
+                return self.endpoint[foreign_table][int(v)]
+            except KeyError:
+                # orphaned fk relationship
+                return None
+
         return None
 
     def to_hash(self):
@@ -693,7 +698,7 @@ class OpenCenterObject(object):
             cross_object = self._cross_object(ctable)
 
             if not cross_object:
-                return 'bad fk (%s)' % v
+                return '%s [orphaned]' % v
 
             return getattr(cross_object, cross_object.schema.friendly_name)
 
