@@ -82,6 +82,10 @@ Using opencentercli
 
     opencentercli task show <task id>
 
+** Show logs for a task **
+
+    opencentercli task logs <task id>
+
 **List items that match a filter**
 
     opencentercli node filter 'id=6'

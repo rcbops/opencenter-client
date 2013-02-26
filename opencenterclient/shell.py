@@ -194,7 +194,11 @@ class OpenCenterShell():
     def do_logs(self, args, obj):
         id = args.id
         act = getattr(self.endpoint, obj)
-        print act[id]._logtail()
+        task = act[id]
+        print "=== Logs for task %s: %s > %s ===" % (id, task.node.name,
+                                                     task.action)
+        print task._logtail()
+        print "=== End of Logs ==="
 
     def do_adventures(self, args, obj):
         act = getattr(self.endpoint, obj)
