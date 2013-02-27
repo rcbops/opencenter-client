@@ -40,7 +40,7 @@ install -m 644 $RPM_SOURCE_DIR/local.conf $RPM_BUILD_ROOT/etc/local.conf
 %{python_sitelib}/opencenter_client*
 %{python_sitelib}/opencenterclient*
 /usr/bin/r2
-/usr/bin/opencenter
+/usr/bin/opencentercli
 %doc
 
 %clean
