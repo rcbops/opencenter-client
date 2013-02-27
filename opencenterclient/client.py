@@ -18,7 +18,10 @@ def ensure_json(f):
         if not hasattr(r, 'json'):
             r.__dict__['json'] = json.loads(r.content)
         if callable(r.json):
-            r.json = r.json()
+            try:
+                r.json = r.json()
+            except ValueError:
+                r.json = ''
         return r
     return wrap
 
@@ -819,7 +822,7 @@ class OpenCenterTask(OpenCenterObject):
         self.synthesized_fields = {'success': lambda: self._success(),
                                    'running': lambda: self._running(),
                                    'complete': lambda: self._complete(),
-                                   'logtail': lambda: self._logtail()}
+                                   'logtail': lambda: self._logtail(**kwargs)}
 
     def _complete(self):
         return self.state in ['done', 'timeout', 'cancelled']
@@ -837,9 +840,15 @@ class OpenCenterTask(OpenCenterObject):
         while self.state not in ['done', 'timeout', 'cancelled']:
             self._request('get', poll=True)
 
-    def _logtail(self):
+    def _logtail(self, **kwargs):
         url = urlparse.urljoin(self._url_for() + '/', 'logs')
-        return self._request('get', url=url).json['log']
+        try:
+            offset = '='.join(('offset', kwargs['offset']))
+        except TypeError:
+            pass
+        else:
+            url = '?'.join((url, offset))
+        return self._request('get', url=url).response.text
 
 
 class OpenCenterAdventure(OpenCenterObject):

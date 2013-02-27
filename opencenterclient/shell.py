@@ -94,7 +94,7 @@ class OpenCenterShell():
                            'applies_to': ['node']
                            },
             'logs': {'description': 'Get output logged by a %s',
-                     'args': ['id'],
+                     'args': ['id', '--offset'],
                      'applies_to': ['task']
                      }
         }
@@ -193,11 +193,12 @@ class OpenCenterShell():
 
     def do_logs(self, args, obj):
         id = args.id
+        kwargs = {'offset': args.offset}
         act = getattr(self.endpoint, obj)
         task = act[id]
         print "=== Logs for task %s: %s > %s ===" % (id, task.node.name,
                                                      task.action)
-        print task._logtail()
+        print task._logtail(**kwargs)
         print "=== End of Logs ==="
 
     def do_adventures(self, args, obj):
