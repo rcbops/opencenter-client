@@ -1,14 +1,14 @@
 %define ver 1
 
 Name:		opencenter-client
-Version:	1.0
+Version:	0.1.0
 Release:	%{ver}%{?dist}
 Summary:	Client library for OpenCenter API
 
 Group:		System
 License:	None
 URL:		https://github.com/rcbops/opencenter-client
-Source0:	opencenter-client-1.0.tgz
+Source0:	opencenter-client-%{version}.tgz
 Source1:	local.conf
 
 BuildRequires:  python-setuptools
