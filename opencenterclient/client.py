@@ -15,13 +15,14 @@ from functools import partial
 def ensure_json(f):
     def wrap(*args, **kwargs):
         r = f(*args, **kwargs)
-        if not hasattr(r, 'json'):
-            r.__dict__['json'] = json.loads(r.content)
-        if callable(r.json):
-            try:
-                r.json = r.json()
-            except ValueError:
-                r.json = ''
+        if not kwargs.get('stream', False):
+            if not hasattr(r, 'json'):
+                r.__dict__['json'] = json.loads(r.content)
+            if callable(r.json):
+                try:
+                    r.json = r.json()
+                except ValueError:
+                    r.json = ''
         return r
     return wrap
 
@@ -791,7 +792,9 @@ class OpenCenterObject(object):
                      payload=None,
                      poll=False,
                      headers={'content-type': 'application/json'},
-                     url=None):
+                     url=None,
+                     params=None,
+                     stream=False):
         if not url:
             url = "%s%s" % (self._url_for(),
                             '?poll' if poll else '')
@@ -800,7 +803,8 @@ class OpenCenterObject(object):
         if payload:
             payload = json.dumps(payload)
             self.logger.debug('Payload: %s' % (payload))
-        r = fn(url, data=payload, headers=headers)
+        r = fn(url, data=payload, headers=headers,
+               params=params, stream=stream)
         return r
 
     def _request_put(self):
@@ -842,13 +846,16 @@ class OpenCenterTask(OpenCenterObject):
 
     def _logtail(self, **kwargs):
         url = urlparse.urljoin(self._url_for() + '/', 'logs')
-        try:
-            offset = '='.join(('offset', kwargs['offset']))
-        except TypeError:
-            pass
-        else:
-            url = '?'.join((url, offset))
-        return self._request('get', url=url).response.text
+        params = {}
+        for param in ('offset', 'watch'):
+            if kwargs[param] is not None:
+                params[param] = kwargs[param]
+        if not params['watch']:
+            del params['watch']
+            return self._request('get', url=url, params=params).response.text
+        resp = self._request('get', url=url, params=params).json
+        url = '/'.join((url, resp['request']))
+        return self._request('get', url=url, stream=True).response
 
 
 class OpenCenterAdventure(OpenCenterObject):

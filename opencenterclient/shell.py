@@ -94,7 +94,9 @@ class OpenCenterShell():
                            'applies_to': ['node']
                            },
             'logs': {'description': 'Get output logged by a %s',
-                     'args': ['id', '--offset'],
+                     'args': ['id',
+                              '--offset',
+                              {'name': '--watch', 'action': 'store_true'}],
                      'applies_to': ['task']
                      }
         }
@@ -153,9 +155,9 @@ class OpenCenterShell():
 
                 #check the descriptions hash for argument help
                 arg_help = None
-                if obj_type in descriptions and action in \
-                        descriptions[obj_type] and arg_name in \
-                        descriptions[obj_type][action]:
+                if (obj_type in descriptions and
+                        action in descriptions[obj_type] and
+                        arg_name in descriptions[obj_type][action]):
                     arg_help = descriptions[obj_type][action][arg_name]
 
                 action_args = actions[action]['args']
@@ -175,8 +177,14 @@ class OpenCenterShell():
                                                    help=arg_help)
                 else:
                     for arg in action_args:
-                        arg_help = _get_help(obj_type, action, arg)
-                        action_parser.add_argument(arg, help=arg_help)
+                        try:
+                            arg_help = _get_help(obj_type, action, arg['name'])
+                            action_parser.add_argument(arg['name'],
+                                                       action=arg['action'],
+                                                       help=arg_help)
+                        except TypeError:
+                            arg_help = _get_help(obj_type, action, arg)
+                            action_parser.add_argument(arg, help=arg_help)
             self.subcommands[obj_type] = type_parser
             type_parser.set_defaults(func=callback)
 
@@ -193,12 +201,20 @@ class OpenCenterShell():
 
     def do_logs(self, args, obj):
         id = args.id
-        kwargs = {'offset': args.offset}
+        kwargs = {'offset': args.offset, 'watch': args.watch}
         act = getattr(self.endpoint, obj)
         task = act[id]
         print "=== Logs for task %s: %s > %s ===" % (id, task.node.name,
                                                      task.action)
-        print task._logtail(**kwargs)
+        if args.watch:
+            try:
+                while True:
+                    for data in task._logtail(**kwargs).iter_content():
+                        sys.stdout.write(data)
+            except KeyboardInterrupt:
+                pass
+        else:
+            print task._logtail(**kwargs)
         print "=== End of Logs ==="
 
     def do_adventures(self, args, obj):
