@@ -14,6 +14,7 @@ Source1:	local.conf
 BuildRequires:  python-setuptools
 Requires:	python-requests
 Requires:	python >= 2.6
+Requires:   python-argparse
 
 BuildArch: noarch
 
