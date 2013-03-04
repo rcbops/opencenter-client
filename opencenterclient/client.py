@@ -39,12 +39,15 @@ def ensure_json(f):
     def wrap(*args, **kwargs):
         r = f(*args, **kwargs)
         if not hasattr(r, 'json'):
-            r.__dict__['json'] = json.loads(r.content)
+            try:
+                r.__dict__['json'] = json.loads(r.content)
+            except ValueError:
+                r.json = None
         if callable(r.json):
             try:
                 r.json = r.json()
             except ValueError:
-                r.json = ''
+                r.json = None
         return r
     return wrap
 
@@ -871,7 +874,7 @@ class OpenCenterTask(OpenCenterObject):
             pass
         else:
             url = '?'.join((url, offset))
-        return self._request('get', url=url).response.text
+        return self._request('get', url=url).response.content
 
 
 class OpenCenterAdventure(OpenCenterObject):
