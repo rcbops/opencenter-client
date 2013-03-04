@@ -42,12 +42,12 @@ def ensure_json(f):
             try:
                 r.__dict__['json'] = json.loads(r.content)
             except ValueError:
-                r.json = ''
+                r.json = None
         if callable(r.json):
             try:
                 r.json = r.json()
             except ValueError:
-                r.json = ''
+                r.json = None
         return r
     return wrap
 
