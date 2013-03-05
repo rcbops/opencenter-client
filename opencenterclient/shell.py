@@ -278,6 +278,9 @@ class OpenCenterShell():
         if args.cli_action == "delete":
             self.do_delete(args, pluralize(args.cli_noun))
 
+        if args.cli_action == "update":
+            self.do_create(args, pluralize(args.cli_noun))
+
         if args.cli_action == "execute":
             self.do_execute(args, pluralize(args.cli_noun))
 
