@@ -817,7 +817,8 @@ class OpenCenterObject(object):
                      payload=None,
                      poll=False,
                      headers={'content-type': 'application/json'},
-                     url=None):
+                     url=None,
+                     params=None):
         if not url:
             url = "%s%s" % (self._url_for(),
                             '?poll' if poll else '')
@@ -826,7 +827,7 @@ class OpenCenterObject(object):
         if payload:
             payload = json.dumps(payload)
             self.logger.debug('Payload: %s' % (payload))
-        r = fn(url, data=payload, headers=headers)
+        r = fn(url, data=payload, headers=headers, params=params)
         return r
 
     def _request_put(self):
@@ -868,13 +869,12 @@ class OpenCenterTask(OpenCenterObject):
 
     def _logtail(self, **kwargs):
         url = urlparse.urljoin(self._url_for() + '/', 'logs')
+        payload = {}
         try:
-            offset = '='.join(('offset', kwargs['offset']))
-        except TypeError:
+            payload['offset'] = kwargs['offset']
+        except KeyError:
             pass
-        else:
-            url = '?'.join((url, offset))
-        return self._request('get', url=url).response.content
+        return self._request('get', url=url, params=payload).response.content
 
 
 class OpenCenterAdventure(OpenCenterObject):
