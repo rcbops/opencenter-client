@@ -111,7 +111,13 @@ class OpenCenterShell():
                     },
                     '--property': {
                         'help': 'Only print one property of this '
-                                '{0}. Example: --property id'
+                                '{0}. Example: --property id. If the '
+                                'property is a nested structure, '
+                                'then dotted paths can be specified. Example:'
+                                ' --property attrs.opencenter_agent_actions.'
+                                'upgrade_agent.timeout Lookup tries object'
+                                ' attributes, dictionary keys and list '
+                                'indices. '
                     }
                 }
             },
@@ -451,24 +457,62 @@ class OpenCenterShell():
         return fields
 
     def do_show(self, args, obj):
+        """Print a whole object, or a specific property following a dotted
+        path.
+
+        When a dotted path is specified (eg:
+        attrs.opencenter_agent_actions.upgrade_agent.timeout),
+        lookup is done in three ways:
+            1) Object Attribute: getattr
+            2) Dictionary key:  []
+            3) List Key: convert to int, then []
+
+        """
         id = args.id
         act = getattr(self.endpoint, obj)
         if args.property is None:
+            #No property specified, print whole item.
             print act[id]
         else:
-            try:
-                item = act[id]
-                property = getattr(item, args.property)
-                try:
-                    print json.dumps(property, sort_keys=True, indent=2,
-                                     separators=(',', ':'))
-                except:
-                    print property
-            except AttributeError, e:
-                print "OpenCenter object type %s has no property %s" % (
-                    singularize(obj),
-                    args.property
+            item = act[id]
+            for path_section in args.property.split('.'):
+
+                # Lookup by object attribute
+                if hasattr(item, path_section):
+                    item = getattr(item, path_section)
+                    continue
+                else:
+                    try:
+                        # Lookup by dictionary key
+                        item = item[path_section]
+                        continue
+                    except:
+                        try:
+                            # Lookup by list index
+                            item = item[int(path_section)]
+                            continue
+                        except:
+                            pass
+
+                # None of the lookup methods succeeded, so property path must
+                # be invalid.
+                raise ValueError(
+                    'Cannot resolve "%s" from property string "%s" for'
+                    ' %s %s' % (
+                        path_section,
+                        args.property,
+                        singularize(obj),
+                        act[id].name
+                    )
                 )
+
+            # Assume the property is JSON and try to pretty-print. If that
+            # fails, print the item normally
+            try:
+                print json.dumps(item, sort_keys=True, indent=2,
+                                 separators=(',', ':'))
+            except:
+                print item
 
     def do_logs(self, args):
         id = args.task_id
@@ -630,6 +674,7 @@ class OpenCenterShell():
         if args.cli_action == "logs":
             self.do_logs(args)
 
+        # node move is an alias for fact create parent_id
         if args.cli_noun == "node" and args.cli_action == "move":
             args.key = "parent_id"
             args.value = self.validate_id_or_name(
