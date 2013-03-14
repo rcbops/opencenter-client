@@ -111,7 +111,13 @@ class OpenCenterShell():
                     },
                     '--property': {
                         'help': 'Only print one property of this '
-                                '{0}. Example: --property id'
+                                '{0}. Example: --property id. If the '
+                                'property is a nested structure, '
+                                'then dotted paths can be specified. Example:'
+                                ' --property attrs.opencenter_agent_actions.'
+                                'upgrade_agent.timeout Lookup tries object'
+                                ' attributes, dictionary keys and list '
+                                'indices. '
                     }
                 }
             },
@@ -195,6 +201,24 @@ class OpenCenterShell():
                             'newname': {
                                 'help': 'Specify the new name for an '
                                         'node'
+                            }
+                        }
+                    },
+                    'move': {
+                        'help': 'Move a node to a different container. This '
+                                'is an alias for "fact create node parent_id '
+                                'new_parent". This operation is not available'
+                                ' if either the node to be moved or '
+                                'current/destination container has the '
+                                'locked attribute set. ',
+                        'args': {
+                            'node_id_or_name': {
+                                'help': 'id or name of node to move',
+                                'order': -1
+                            },
+                            'new_parent_id_or_name': {
+                                'help': 'id or name of container node to '
+                                        'move into'
                             }
                         }
                     }
@@ -281,7 +305,6 @@ class OpenCenterShell():
                                 'help': 'new value',
                                 'order': 2
                             },
-
                             'name': None
                         }
                     },
@@ -434,24 +457,62 @@ class OpenCenterShell():
         return fields
 
     def do_show(self, args, obj):
+        """Print a whole object, or a specific property following a dotted
+        path.
+
+        When a dotted path is specified (eg:
+        attrs.opencenter_agent_actions.upgrade_agent.timeout),
+        lookup is done in three ways:
+            1) Object Attribute: getattr
+            2) Dictionary key:  []
+            3) List Key: convert to int, then []
+
+        """
         id = args.id
         act = getattr(self.endpoint, obj)
         if args.property is None:
+            #No property specified, print whole item.
             print act[id]
         else:
-            try:
-                item = act[id]
-                property = getattr(item, args.property)
-                try:
-                    print json.dumps(property, sort_keys=True, indent=2,
-                                     separators=(',', ':'))
-                except:
-                    print property
-            except AttributeError, e:
-                print "OpenCenter object type %s has no property %s" % (
-                    singularize(obj),
-                    args.property
+            item = act[id]
+            for path_section in args.property.split('.'):
+
+                # Lookup by object attribute
+                if hasattr(item, path_section):
+                    item = getattr(item, path_section)
+                    continue
+                else:
+                    try:
+                        # Lookup by dictionary key
+                        item = item[path_section]
+                        continue
+                    except:
+                        try:
+                            # Lookup by list index
+                            item = item[int(path_section)]
+                            continue
+                        except:
+                            pass
+
+                # None of the lookup methods succeeded, so property path must
+                # be invalid.
+                raise ValueError(
+                    'Cannot resolve "%s" from property string "%s" for'
+                    ' %s %s' % (
+                        path_section,
+                        args.property,
+                        singularize(obj),
+                        act[id].name
+                    )
                 )
+
+            # Assume the property is JSON and try to pretty-print. If that
+            # fails, print the item normally
+            try:
+                print json.dumps(item, sort_keys=True, indent=2,
+                                 separators=(',', ':'))
+            except:
+                print item
 
     def do_logs(self, args):
         id = args.task_id
@@ -554,7 +615,7 @@ class OpenCenterShell():
 
         #Resolve name or id fields into valid IDs.
         id_or_name_re = re.compile(
-            '((?P<obj_type>\w*)_)?id(_or_name)?')
+            '((?P<obj_type>[a-zA-Z0-9]*)_)?id(_or_name)?')
         for arg, value in args.__dict__.items():
             match = id_or_name_re.match(arg)
             if match:
@@ -613,16 +674,25 @@ class OpenCenterShell():
         if args.cli_action == "logs":
             self.do_logs(args)
 
+        # node move is an alias for fact create parent_id
+        if args.cli_noun == "node" and args.cli_action == "move":
+            args.key = "parent_id"
+            args.value = self.validate_id_or_name(
+                'node', args.new_parent_id_or_name)
+            self.do_create(args, 'facts')
+
 
 def main():
-    OpenCenterShell().main(sys.argv[1:])
-    return
-    try:
+    if 'OPENCENTER_CLIENT_DEBUG' in os.environ:
         OpenCenterShell().main(sys.argv[1:])
-    except Exception, e:
-        print >> sys.stderr, e
+        return
+    else:
+        try:
+            OpenCenterShell().main(sys.argv[1:])
+        except Exception, e:
+            print >> sys.stderr, e
 
-        sys.exit(1)
+            sys.exit(1)
 
 if __name__ == '__main__':
     main()
