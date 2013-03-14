@@ -414,11 +414,6 @@ class OpenCenterShell():
                         del arg_dict['order']
                         parser.add_argument(arg_name, **arg_dict)
 
-        #Root parser - all other commands will be added as sub parsers.
-        parser = argparse.ArgumentParser(description='OpenCenter CLI',
-                                         prog='opencentercli',
-                                         )
-
         # The global_options parser will be added to all other parsers as a
         # parent. This ensures that these options are available at every
         # level of command.
@@ -438,6 +433,12 @@ class OpenCenterShell():
             help="URL to opencenter endpoint. Should be of the form "
                  "http://host:8080 or https://user:pass@host:8443"
         )
+
+        #Root parser - all other commands will be added as sub parsers.
+        parser = argparse.ArgumentParser(description='OpenCenter CLI',
+                                         prog='opencentercli',
+                                         parents=[global_options]
+                                         )
 
         #kick off arg_tree traversal
         _traverse_arg_tree(tree=arg_tree,
@@ -597,6 +598,7 @@ class OpenCenterShell():
 
     def main(self, argv):
         args = self.parse_args(argv)
+
         if args.debug:
             self.set_log_level(logging.DEBUG)
             self.logger.debug("CLI arguments: %s" % str(args))
