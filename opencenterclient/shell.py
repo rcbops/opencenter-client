@@ -197,6 +197,24 @@ class OpenCenterShell():
                                         'node'
                             }
                         }
+                    },
+                    'move': {
+                        'help': 'Move a node to a different container. This '
+                                'is an alias for "fact create node parent_id '
+                                'new_parent". This operation is not available'
+                                ' if either the node to be moved or '
+                                'current/destination container has the '
+                                'locked attribute set. ',
+                        'args': {
+                            'node_id_or_name': {
+                                'help': 'id or name of node to move',
+                                'order': -1
+                            },
+                            'new_parent_id_or_name': {
+                                'help': 'id or name of container node to '
+                                        'move into'
+                            }
+                        }
                     }
                 })
             },
@@ -281,7 +299,6 @@ class OpenCenterShell():
                                 'help': 'new value',
                                 'order': 2
                             },
-
                             'name': None
                         }
                     },
@@ -554,7 +571,7 @@ class OpenCenterShell():
 
         #Resolve name or id fields into valid IDs.
         id_or_name_re = re.compile(
-            '((?P<obj_type>\w*)_)?id(_or_name)?')
+            '((?P<obj_type>[a-zA-Z0-9]*)_)?id(_or_name)?')
         for arg, value in args.__dict__.items():
             match = id_or_name_re.match(arg)
             if match:
@@ -613,16 +630,24 @@ class OpenCenterShell():
         if args.cli_action == "logs":
             self.do_logs(args)
 
+        if args.cli_noun == "node" and args.cli_action == "move":
+            args.key = "parent_id"
+            args.value = self.validate_id_or_name(
+                'node', args.new_parent_id_or_name)
+            self.do_create(args, 'facts')
+
 
 def main():
-    OpenCenterShell().main(sys.argv[1:])
-    return
-    try:
+    if 'OPENCENTER_CLIENT_DEBUG' in os.environ:
         OpenCenterShell().main(sys.argv[1:])
-    except Exception, e:
-        print >> sys.stderr, e
+        return
+    else:
+        try:
+            OpenCenterShell().main(sys.argv[1:])
+        except Exception, e:
+            print >> sys.stderr, e
 
-        sys.exit(1)
+            sys.exit(1)
 
 if __name__ == '__main__':
     main()
