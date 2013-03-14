@@ -330,7 +330,7 @@ class OpenCenterShell():
                         'help': 'Execute an adventure',
                         'args': {
                             'adventure_id_or_name': {
-                                'order': -1
+                                'order': +1
                             },
                             'node_id_or_name': {}
                         }
