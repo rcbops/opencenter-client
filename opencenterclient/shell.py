@@ -140,13 +140,17 @@ class OpenCenterShell():
             'delete': {
                 'help': 'Delete a {0}',
                 'args': {
-                    'id_or_name': {}
+                    'id_or_name': {
+                        'help': 'ID or name of {0} to delete.'
+                    }
                 }
             },
             'create': {
                 'help': 'Create a {0}',
                 'args': {
-                    'name': {}
+                    'name': {
+                        'help': 'Name of the new {0}'
+                    }
                 }
             },
             'update': {
@@ -232,6 +236,26 @@ class OpenCenterShell():
                 'subcommands': deep_update(rw_actions, {
                     'update': None,
                     'delete': None,
+                    'create': {
+                        'args': {
+                            'name': None,
+                            'action': {
+                                'help': 'Action for this task to execute. '
+                                        'Valid actions are listed in each '
+                                        'node\'s opencenter_agent_actions'
+                                        'attribute'
+                            },
+                            'node_id_or_name': {
+                                'help': 'Node to execute this action on.',
+                                'order': -1
+                            },
+                            'payload': {
+                                'help': 'JSON string containing inputs for '
+                                        'the task.',
+                                'order': 1
+                            }
+                        }
+                    },
                     'logs': {
                         'help': 'Retrieve task logs',
                         'args': {
@@ -276,11 +300,6 @@ class OpenCenterShell():
                                 'help': 'ID of fact to update',
                                 'order': -1
                             },
-                            'key': {
-                                'help': 'new key',
-                                'order': 1
-
-                            },
                             'value': {
                                 'help': 'new value',
                                 'order': 2
@@ -312,10 +331,6 @@ class OpenCenterShell():
                     },
                     'update': {
                         'args': {
-                            'key': {
-                                'help': 'new key',
-                                'order': 1
-                            },
                             'value': {
                                 'help': 'new value',
                                 'order': 2
@@ -327,7 +342,7 @@ class OpenCenterShell():
             'adventure': {
                 'help': 'A predefined set of tasks for achieving a goal.',
                 'dest': 'cli_action',
-                'subcommands': deep_update(ro_actions, {
+                'subcommands': deep_update(rw_actions, {
                     'execute': {
                         'help': 'Execute an adventure',
                         'args': {
@@ -336,12 +351,65 @@ class OpenCenterShell():
                             },
                             'node_id_or_name': {}
                         }
+                    },
+                    'create': {
+                        'args': {
+                            'name': {
+                                'help': 'Name of the new Adventure.',
+                                'order': -1
+                            },
+                            'arguments': {
+                                'help': 'Arguments for this Adventure, '
+                                        'JSON string.',
+                                'order': 1
+                            },
+                            'dsl': {
+                                'help': 'Domain Specific Languague for '
+                                        'defining adventures. For example: '
+                                        '[ {{ "ns": {{}}, "primitive": '
+                                        '"download_cookbooks" }} ]',
+                                'order': 2
+                            },
+                            'criteria': {
+                                'help': 'Filter string written in the '
+                                        'opencenter filter languague.',
+                                'order': 3
+                            }
+                        }
+                    },
+                    'update': {
+                        'args': {
+                            'id_or_name': {
+                                'help': 'name or id of adventure to update',
+                                'order': -1
+                            },
+                            '--name': {
+                                'help': 'New name for this adventure.'
+                            },
+                            '--arguments': {
+                                'help': 'Arguments for this Adventure, '
+                                        'JSON string.',
+                                'order': 1
+                            },
+                            '--dsl': {
+                                'help': 'Domain Specific Languague for '
+                                        'defining adventures. For example: '
+                                        '[ {{ "ns": {{}}, "primitive": '
+                                        '"download_cookbooks" }} ]',
+                                'order': 2
+                            },
+                            '--criteria': {
+                                'help': 'Filter string written in the '
+                                        'opencenter filter languague.',
+                                'order': 3
+                            }
+                        }
                     }
                 })
             },
             'primitive': {
-                'help': 'A low level action that can be executed by '
-                        'OpenCenter',
+                'help': 'A low level action that can be executed as part of '
+                        'an OpenCenter adventure.',
                 'dest': 'cli_action',
                 'subcommands': ro_actions
             }
@@ -650,6 +718,13 @@ class OpenCenterShell():
                 except ValueError, e:
                     print e
                     return
+
+        #Adventure has an arg called args, this conflicts with the arg_tree
+        # structure, so I called the args arg arguments. At this point it
+        # can be renamed back to args.
+        if hasattr(args, 'arguments'):
+            args.args = args.arguments
+            del args.arguments
 
         if args.cli_action == "list":
             print getattr(self.endpoint, pluralize(args.cli_noun))
