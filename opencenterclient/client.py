@@ -541,7 +541,7 @@ class OpenCenterEndpoint:
         self.schemas = {}
 
         try:
-            r = self.requests.get('%s/schema' % self.endpoint)
+            r = self.requests.get('%s/schema' % self.endpoint, timeout=15)
         except requests.exceptions.ConnectionError as e:
             self.logger.error(str(e))
             self.logger.error('Could not connect to endpoint %s/schema' % (
