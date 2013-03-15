@@ -235,13 +235,13 @@ class OpenCenterShell():
                             'node_id_or_name': {
                                 'help': 'Name or ID of the node to list or '
                                         'retrieve files from.',
-                                'order': -2
+                                'order': -1
                             },
                             'action': {
                                 'choices': ['list', 'get'],
                                 'help': 'Retrieve a list of files at a path, '
                                         'or retrieve an individual file',
-                                'order': -1
+                                'order': -2
                             },
                             'path': {
                                 'help': 'Path to directory to list or file to '
