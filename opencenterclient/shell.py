@@ -57,17 +57,13 @@ def deep_update(base, updates):
 
 
 class OpenCenterShell():
-    def __init__(self):
-        #setup logging
-        self.logger = logging.getLogger('opencenter')
-        if not self.logger.handlers:
-            self.logger.addHandler(logging.StreamHandler(sys.stderr))
 
     def set_endpoint(self, endpoint_url):
         self.endpoint = OpenCenterEndpoint(endpoint=endpoint_url,
                                            interactive=True)
 
     def set_log_level(self, level):
+        self.logger = logging.getLogger('opencenter')
         self.logger.setLevel(level)
         logging.basicConfig(level=level)
 
@@ -83,6 +79,12 @@ class OpenCenterShell():
         This is achieved via the deep_update function.
 
         """
+
+        if 'OPENCENTER_CLIENT_ARGPARSE_DEBUG' in os.environ:
+            arg_debug = True
+            self.set_log_level(logging.DEBUG)
+        else:
+            arg_debug = False
 
         # Base list of actions. this can be included in the arg_tree as a
         # default set of actions for a noun (eg node, task).
@@ -345,8 +347,9 @@ class OpenCenterShell():
             }
         }
 
-        # print json.dumps(arg_tree, sort_keys=True, indent=2,
-        #                  separators=(',', ':'))
+        if arg_debug:
+            self.logger.debug(json.dumps(arg_tree, sort_keys=True, indent=2,
+                              separators=(',', ':')))
 
         def _traverse_arg_tree(tree, parser, parents=None, dest="", help="",
                                path=None):
@@ -361,6 +364,8 @@ class OpenCenterShell():
                                                      key=lambda x: x[0]):
                 _path = copy.deepcopy(path)
                 _path.append(command_name)
+                if arg_debug:
+                    self.logger.debug(_path)
                 if 'subcommands' in command_dict:
 
                     if sub_parsers is None:
@@ -402,7 +407,10 @@ class OpenCenterShell():
                                        path=_path)
 
                 elif command_name == 'args':
-                    for arg_dict in command_dict.values():
+                    for arg_name, arg_dict in command_dict.items():
+                        if arg_debug:
+                            self.logger.debug('%s, %s' % (arg_name,
+                                                          str(arg_dict)))
                         if 'order' not in arg_dict:
                             arg_dict['order'] = 0
 
@@ -602,6 +610,8 @@ class OpenCenterShell():
         if args.debug:
             self.set_log_level(logging.DEBUG)
             self.logger.debug("CLI arguments: %s" % str(args))
+        else:
+            self.set_log_level(logging.WARNING)
 
         try:
             self.set_endpoint(args.endpoint)
