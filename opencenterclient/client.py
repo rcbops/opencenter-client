@@ -62,13 +62,16 @@ class Requester(object):
         self.verify = not opencenter_ca is None
         self.cert = cert
         self.requests = requests
+        self.logger = logging.getLogger('opencenter.endpoint')
         if user is not None and password is not None:
             auth = (user, password)
         else:
             auth = None
         old = False
         try:
+            #self.http_log_req("", "GET")
             requests.get("", verify=False)
+            #self.ttpd_log_resp(r)
         except TypeError:
             #old version of requests
             old = True
@@ -91,6 +94,29 @@ class Requester(object):
 
     def __getattr__(self, attr):
         return getattr(self.requests, attr)
+
+    def http_log_req(self, url, method, **kwargs):
+        print "Got here"
+        string_parts = ['curl -i ']
+        string_parts.append(url)
+        string_parts.append(' -X -%s' % method)
+        if 'headers' in kwargs:
+            for element in kwargs['headers']:
+                print kwargs['headers']
+                header = ' -H "%s: %s"' % (element, kwargs['headers'][element])
+                string_parts.append(header)
+
+        if 'data' in kwargs:
+            string_parts.append(" -d '%s'" %(kwargs['data']))
+
+        self.logger.debug("\nREQ: %s\n" % "".join(string_parts))
+
+    def http_log_resp(self, resp):
+        self.logger.debug(
+                "\nRESP: [%s] %s\nRESP BODY: %s\n",
+                resp.status_code,
+                resp.headers,
+                resp.text)
 
 
 # this might be a trifle naive
@@ -175,8 +201,10 @@ class ObjectSchema:
         schema_uri = "%s/%s/schema" % (endpoint.endpoint,
                                        pluralize(object_type))
 
+        self.endpoint.requests.http_log_req(schema_uri, "GET", headers={'content-type': 'application/json'})
         r = endpoint.requests.get(schema_uri,
                                   headers={'content-type': 'application/json'})
+        self.endpoint.requests.http_log_resp(r)
         # if we can't get a schema, might as well
         # just let the exception happen
         self.field_schema = r.json['schema']
@@ -478,16 +506,23 @@ class LazyDict:
                                              pluralize(self.object_type)) + '/'
 
             if self.filter_string:
+                self.endpoint.requests.http_log_req(urlparse.urljoin(base_endpoint, 'filter'),
+                    "POST", headers={'content-type': 'application/json'},
+                    data=json.dumps({'filter': self.filter_string}))
                 r = self.endpoint.requests.post(
                     urlparse.urljoin(base_endpoint, 'filter'),
                     headers={'content-type': 'application/json'},
                     data=json.dumps({'filter': self.filter_string}))
+                self.endpoint.requests.http_log_resp(r)
                 self.logger.debug('payload: %s' % (
                     {'filter': self.filter_string}))
             else:
+                self.endpoint.requests.http_log_req(base_endpoint, "GET",
+                    headers={'content-type': 'application/json'})
                 r = self.endpoint.requests.get(
                     base_endpoint,
                     headers={'content-type': 'application/json'})
+                self.endpoint.requests.http_log_resp(r)
 
             for item in r.json[pluralize(self.object_type)]:
                 type_class = "OpenCenter%s" % self.object_type.capitalize()
@@ -541,7 +576,10 @@ class OpenCenterEndpoint:
         self.schemas = {}
 
         try:
+            self.requests.http_log_req('%s/schema' % self.endpoint, 'GET')
             r = self.requests.get('%s/schema' % self.endpoint, timeout=15)
+            self.requests.http_log_resp(r)
+
         except requests.exceptions.ConnectionError as e:
             self.logger.error(str(e))
             self.logger.error('Could not connect to endpoint %s/schema' % (
