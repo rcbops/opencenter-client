@@ -28,9 +28,9 @@ import sys
 import json
 import logging
 import re
+import copy
 
 from client import OpenCenterEndpoint, singularize, pluralize
-import copy
 
 
 def deep_update(base, updates):
@@ -227,7 +227,31 @@ class OpenCenterShell():
                                         'move into'
                             }
                         }
+                    },
+                    'file': {
+                        'help': 'list or retrieve files from a node that is '
+                                'running the opencenter agent',
+                        'args': {
+                            'node_id_or_name': {
+                                'help': 'Name or ID of the node to list or '
+                                        'retrieve files from.',
+                                'order': -2
+                            },
+                            'action': {
+                                'choices': ['list', 'get'],
+                                'help': 'Retrieve a list of files at a path, '
+                                        'or retrieve an individual file',
+                                'order': -1
+                            },
+                            'path': {
+                                'help': 'Path to directory to list or file to '
+                                        'retrieve. This is a local filesystem '
+                                        'path on the system that is running '
+                                        'the OpenCenter agent.'
+                            }
+                        }
                     }
+
                 })
             },
             'task': {
@@ -614,6 +638,7 @@ class OpenCenterShell():
         act = getattr(self.endpoint, obj)
         new_node = act.create(**ver)
         new_node.save()
+        return new_node
 
     def do_delete(self, args, obj):
         try:
@@ -637,6 +662,39 @@ class OpenCenterShell():
         print "Adventures that may be executed against node %s, %s:" % (
             args.node_id, self.endpoint.nodes[args.node_id].name)
         print self.endpoint.nodes[args.node_id]._adventures()
+
+    def do_file(self, args):
+        """  List or retrieve files from a node, by creating tasks for the
+        files plugin.
+        """
+
+        verb = args.action
+        if args.action == 'list':
+            action = 'files_list'
+            args.payload = json.dumps({
+                'path': args.path
+            })
+        if args.action == 'get':
+            action = 'files_get'
+            args.payload = json.dumps({
+                'file': args.path
+            })
+
+        args.action = action
+
+        task = self.do_create(args, 'tasks')
+        task.wait_for_complete()
+        if task._success():
+            result = task.result['result_data']
+
+            if args.action == 'files_list':
+                for file in sorted(result):
+                    print file
+            else:
+                print result
+        else:
+            print "Failed to %s %s: %s" % (verb, args.path,
+                                           task.result['result_str'])
 
     def validate_id_or_name(self, obj_type, id_or_name):
         """Get object ID from type and name, or validate that the specified
@@ -767,6 +825,9 @@ class OpenCenterShell():
             args.value = self.validate_id_or_name(
                 'node', args.new_parent_id_or_name)
             self.do_create(args, 'facts')
+
+        if args.cli_noun == "node" and args.cli_action == "file":
+            self.do_file(args)
 
 
 def main():
