@@ -66,8 +66,8 @@ class OpenCenterShell():
         self.logger = logging.getLogger('opencenter')
         self.logger.setLevel(level)
         streamHandler = logging.StreamHandler()
-        streamFormat = logging.Formatter('%(asctime)s - %(name)s -'\
-                                        '%(levelname)s - %(message)s')
+        streamFormat = logging.Formatter('%(asctime)s - %(name)s -'
+                                         '%(levelname)s - %(message)s')
         streamHandler.setFormatter(streamFormat)
         self.logger.addHandler(streamHandler)
 

@@ -116,11 +116,11 @@ class Requester(object):
             if kwargs['payload'] is not None:
                 string_parts.append(" -d '%s'" % (kwargs['payload']))
 
-        self.logger.debug("\nREQ: %s\n" % "".join(string_parts))
+        self.logger.debug("Request Made:\nREQ: %s\n" % "".join(string_parts))
 
     def http_log_resp(self, resp):
-        self.logger.debug("\nRESP: [%s] %s\nRESP BODY: %s\n", resp.status_code,
-                          resp.headers, resp.text)
+        self.logger.debug("Response Received:\nRESP: [%s] %s\nRESP BODY: %s\n"
+                          , resp.status_code, resp.headers, resp.text)
 
 
 # this might be a trifle naive
