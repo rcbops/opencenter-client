@@ -69,9 +69,7 @@ class Requester(object):
             auth = None
         old = False
         try:
-            #self.http_log_req("", "GET")
             requests.get("", verify=False)
-            #self.ttpd_log_resp(r)
         except TypeError:
             #old version of requests
             old = True
@@ -96,27 +94,33 @@ class Requester(object):
         return getattr(self.requests, attr)
 
     def http_log_req(self, url, method, **kwargs):
-        print "Got here"
         string_parts = ['curl -i ']
         string_parts.append(url)
-        string_parts.append(' -X -%s' % method)
+        if 'params' in kwargs:
+            if kwargs['params'] is not None:
+                for element in kwargs['params']:
+                    param = "?%s=%s" % (element, kwargs['params'][element])
+                    string_parts.append(param)
+
+        string_parts.append(' -X %s' % method.upper())
         if 'headers' in kwargs:
             for element in kwargs['headers']:
-                print kwargs['headers']
                 header = ' -H "%s: %s"' % (element, kwargs['headers'][element])
                 string_parts.append(header)
 
         if 'data' in kwargs:
-            string_parts.append(" -d '%s'" %(kwargs['data']))
+            if kwargs['data'] is not None:
+                string_parts.append(" -d '%s'" % (kwargs['data']))
+
+        if 'payload' in kwargs:
+            if kwargs['payload'] is not None:
+                string_parts.append(" -d '%s'" % (kwargs['payload']))
 
         self.logger.debug("\nREQ: %s\n" % "".join(string_parts))
 
     def http_log_resp(self, resp):
-        self.logger.debug(
-                "\nRESP: [%s] %s\nRESP BODY: %s\n",
-                resp.status_code,
-                resp.headers,
-                resp.text)
+        self.logger.debug("\nRESP: [%s] %s\nRESP BODY: %s\n", resp.status_code,
+                          resp.headers, resp.text)
 
 
 # this might be a trifle naive
@@ -201,7 +205,9 @@ class ObjectSchema:
         schema_uri = "%s/%s/schema" % (endpoint.endpoint,
                                        pluralize(object_type))
 
-        self.endpoint.requests.http_log_req(schema_uri, "GET", headers={'content-type': 'application/json'})
+        self.endpoint.requests.http_log_req(schema_uri, "get",
+                                            headers={'content-type':
+                                            'application/json'})
         r = endpoint.requests.get(schema_uri,
                                   headers={'content-type': 'application/json'})
         self.endpoint.requests.http_log_resp(r)
@@ -506,8 +512,9 @@ class LazyDict:
                                              pluralize(self.object_type)) + '/'
 
             if self.filter_string:
-                self.endpoint.requests.http_log_req(urlparse.urljoin(base_endpoint, 'filter'),
-                    "POST", headers={'content-type': 'application/json'},
+                self.endpoint.requests.http_log_req(
+                    urlparse.urljoin(base_endpoint, 'filter'), "post",
+                    headers={'content-type': 'application/json'},
                     data=json.dumps({'filter': self.filter_string}))
                 r = self.endpoint.requests.post(
                     urlparse.urljoin(base_endpoint, 'filter'),
@@ -517,7 +524,8 @@ class LazyDict:
                 self.logger.debug('payload: %s' % (
                     {'filter': self.filter_string}))
             else:
-                self.endpoint.requests.http_log_req(base_endpoint, "GET",
+                self.endpoint.requests.http_log_req(
+                    base_endpoint, "get",
                     headers={'content-type': 'application/json'})
                 r = self.endpoint.requests.get(
                     base_endpoint,
@@ -576,7 +584,7 @@ class OpenCenterEndpoint:
         self.schemas = {}
 
         try:
-            self.requests.http_log_req('%s/schema' % self.endpoint, 'GET')
+            self.requests.http_log_req('%s/schema' % self.endpoint, 'get')
             r = self.requests.get('%s/schema' % self.endpoint, timeout=15)
             self.requests.http_log_resp(r)
 
@@ -805,8 +813,12 @@ class OpenCenterObject(object):
 
     def _request(self, request_type, polling=False, **kwargs):
         plan_args = None
+        url = None
         if 'plan_args' in kwargs:
             plan_args = kwargs.pop('plan_args')
+
+        if 'url' in kwargs:
+            url = kwargs.pop('url')
 
         r = RequestResult(self.endpoint,
                           self._raw_request(request_type, **kwargs))
@@ -865,7 +877,11 @@ class OpenCenterObject(object):
         if payload:
             payload = json.dumps(payload)
             self.logger.debug('Payload: %s' % (payload))
+
+        self.endpoint.requests.http_log_req(url, request_type, data=payload,
+                                            headers=headers, params=params)
         r = fn(url, data=payload, headers=headers, params=params)
+        self.endpoint.requests.http_log_resp(r)
         return r
 
     def _request_put(self):
