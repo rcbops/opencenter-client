@@ -978,9 +978,9 @@ class OpenCenterNode(OpenCenterObject):
             return self.endpoint['adventures'].filter(' or '.join(
                 map(lambda x: '(id=%d)' % x, adventure_list)))
 
-    def whoami(self, name):
+    def whoami(self, **kwargs):
         url = urlparse.urljoin(self._url_for(), 'whoami')
-        return self._request('post', url=url, payload={"hostname": name})
+        return self._request('post', url=url, payload=kwargs)
 
 
 class ClientApp:
