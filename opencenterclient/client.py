@@ -823,7 +823,7 @@ class OpenCenterObject(object):
             plan_args = kwargs.pop('plan_args')
 
         if 'url' in kwargs:
-            url = kwargs.pop('url')
+            url = kwargs.get('url')
 
         r = RequestResult(self.endpoint,
                           self._raw_request(request_type, **kwargs))
