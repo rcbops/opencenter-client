@@ -48,6 +48,11 @@ def ensure_json(f):
                 r.json = r.json()
             except ValueError:
                 r.json = None
+        if not hasattr(r, 'text'):
+            try:
+                setattr(r, 'text', r.content)
+            except ValueError:
+                r.text = None
         return r
     return wrap
 
@@ -205,12 +210,12 @@ class ObjectSchema:
         schema_uri = "%s/%s/schema" % (endpoint.endpoint,
                                        pluralize(object_type))
 
-        self.endpoint.requests.http_log_req(schema_uri, "get",
-                                            headers={'content-type':
-                                            'application/json'})
+        #self.endpoint.requests.http_log_req(schema_uri, "get",
+        #                                    headers={'content-type':
+        #                                    'application/json'})
         r = endpoint.requests.get(schema_uri,
                                   headers={'content-type': 'application/json'})
-        self.endpoint.requests.http_log_resp(r)
+        #self.endpoint.requests.http_log_resp(r)
         # if we can't get a schema, might as well
         # just let the exception happen
         self.field_schema = r.json['schema']
@@ -584,9 +589,9 @@ class OpenCenterEndpoint:
         self.schemas = {}
 
         try:
-            self.requests.http_log_req('%s/schema' % self.endpoint, 'get')
+            #self.requests.http_log_req('%s/schema' % self.endpoint, 'get')
             r = self.requests.get('%s/schema' % self.endpoint, timeout=15)
-            self.requests.http_log_resp(r)
+            #self.requests.http_log_resp(r)
 
         except requests.exceptions.ConnectionError as e:
             self.logger.error(str(e))
