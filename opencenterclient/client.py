@@ -823,9 +823,6 @@ class OpenCenterObject(object):
         r = RequestResult(self.endpoint,
                           self._raw_request(request_type, **kwargs))
         try:
-            self.logger.debug('got result back: %s' % r.json)
-            self.logger.debug('got result code: %d' % r.status_code)
-
             if self.object_type in r.json:
                 self.attributes = r.json[self.object_type]
         except KeyboardInterrupt:

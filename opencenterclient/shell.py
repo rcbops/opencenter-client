@@ -65,7 +65,11 @@ class OpenCenterShell():
     def set_log_level(self, level):
         self.logger = logging.getLogger('opencenter')
         self.logger.setLevel(level)
-        logging.basicConfig(level=level)
+        streamHandler = logging.StreamHandler()
+        streamFormat = logging.Formatter('%(asctime)s - %(name)s -'\
+                                        '%(levelname)s - %(message)s')
+        streamHandler.setFormatter(streamFormat)
+        self.logger.addHandler(streamHandler)
 
     def parse_args(self, argv):
         """Parse arguments using Argparse.
