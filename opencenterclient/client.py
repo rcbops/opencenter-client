@@ -119,8 +119,8 @@ class Requester(object):
         self.logger.debug("Request Made:\nREQ: %s\n" % "".join(string_parts))
 
     def http_log_resp(self, resp):
-        self.logger.debug("Response Received:\nRESP: [%s] %s\nRESP BODY: %s\n"
-                          , resp.status_code, resp.headers, resp.text)
+        self.logger.debug("Response Received:\nRESP: [%s] %s\nRESP BODY: %s\n",
+                          resp.status_code, resp.headers, resp.text)
 
 
 # this might be a trifle naive
