@@ -50,11 +50,11 @@ rm -rf $RPM_BUILD_ROOT
 %post
 
 %changelog
-* Mon Oct 2 2012 Joseph W. Breu (joseph.breu@rackspace.com) - 1.0
-- Initial build
-
 * Wed Mar 20 2013 RCB Builder (rcb-deploy@lists.rackspace.com) - 2.0
 - Added node move (f92599d)
 - fixing positional arguments
 - logging improvements (2be6832)
 - Fix for versioning of requests module (6cd0fc6)
+
+* Mon Oct 2 2012 Joseph W. Breu (joseph.breu@rackspace.com) - 1.0
+- Initial build
