@@ -1,3 +1,12 @@
+opencenter-client (0.2) precise; urgency=low
+
+  * Added node move (f92599d)
+  * fixing positional arguments
+  * logging improvements (2be6832)
+  * Fix for versioning of requests module (6cd0fc6)
+
+ -- RCB Builder <rcb-deploy@lists.rackspace.com>  Wed, 20 Mar 2013 15:55:15 +0000
+
 opencenter-client (0.1) UNRELEASED; urgency=low
 
   * Initial release.
