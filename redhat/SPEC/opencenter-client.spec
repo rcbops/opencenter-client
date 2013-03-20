@@ -49,6 +49,9 @@ rm -rf $RPM_BUILD_ROOT
 
 %post
 
+# *******************************************************
+# ATTENTION: changelog is in reverse chronological order
+# *******************************************************
 %changelog
 * Wed Mar 20 2013 RCB Builder (rcb-deploy@lists.rackspace.com) - 2.0
 - Added node move (f92599d)
