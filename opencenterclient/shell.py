@@ -836,6 +836,7 @@ class OpenCenterShell():
 
 
 def main():
+    print "test patch"
     if 'OPENCENTER_CLIENT_DEBUG' in os.environ:
         OpenCenterShell().main(sys.argv[1:])
         return
