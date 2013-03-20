@@ -331,7 +331,8 @@ class OpenCenterShell():
                             'value': {
                                 'help': 'new value',
                                 'order': 2
-                            }
+                            },
+                            'id_or_name': None
                         }
                     }
                 })
