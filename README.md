@@ -93,3 +93,4 @@ Using opencentercli
 **Override opencenter server endpoint:**
 
     OPENCENTER_ENDPOINT=http://<opencenter server>:8080 opencentercli node list
+
