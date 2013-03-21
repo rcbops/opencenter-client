@@ -160,8 +160,9 @@ class OpenCenterShell():
             'update': {
                 'help': 'Modify a {0}',
                 'args': {
-                    'id_or_name': {
-                        'help': 'name or id of {0} to update'
+                    'id': {
+                        'help': 'id of {0} to update',
+                        'order': -1
                     }
                 }
             },
@@ -203,14 +204,6 @@ class OpenCenterShell():
                                 'args': {
                                     'node_id_or_name': {}
                                 }
-                            }
-                        }
-                    },
-                    'update': {
-                        'args': {
-                            'newname': {
-                                'help': 'Specify the new name for an '
-                                        'node'
                             }
                         }
                     },
@@ -324,15 +317,10 @@ class OpenCenterShell():
                     },
                     'update': {
                         'args': {
-                            'fact_id': {
-                                'help': 'ID of fact to update',
-                                'order': -1
-                            },
                             'value': {
                                 'help': 'new value',
                                 'order': 2
-                            },
-                            'id_or_name': None
+                            }
                         }
                     }
                 })
@@ -431,7 +419,8 @@ class OpenCenterShell():
                                 'help': 'Filter string written in the '
                                         'opencenter filter languague.',
                                 'order': 3
-                            }
+                            },
+                            'id': None
                         }
                     }
                 })
