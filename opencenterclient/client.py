@@ -48,6 +48,11 @@ def ensure_json(f):
                 r.json = r.json()
             except ValueError:
                 r.json = None
+        if not hasattr(r, 'text'):
+            try:
+                setattr(r, 'text', r.content)
+            except ValueError:
+                r.text = None
         return r
     return wrap
 
@@ -62,6 +67,7 @@ class Requester(object):
         self.verify = not opencenter_ca is None
         self.cert = cert
         self.requests = requests
+        self.logger = logging.getLogger('opencenter.endpoint')
         if user is not None and password is not None:
             auth = (user, password)
         else:
@@ -91,6 +97,35 @@ class Requester(object):
 
     def __getattr__(self, attr):
         return getattr(self.requests, attr)
+
+    def http_log_req(self, url, method, **kwargs):
+        string_parts = ['curl -i ']
+        string_parts.append(url)
+        if 'params' in kwargs:
+            if kwargs['params'] is not None:
+                for element in kwargs['params']:
+                    param = "?%s=%s" % (element, kwargs['params'][element])
+                    string_parts.append(param)
+
+        string_parts.append(' -X %s' % method.upper())
+        if 'headers' in kwargs:
+            for element in kwargs['headers']:
+                header = ' -H "%s: %s"' % (element, kwargs['headers'][element])
+                string_parts.append(header)
+
+        if 'data' in kwargs:
+            if kwargs['data'] is not None:
+                string_parts.append(" -d '%s'" % (kwargs['data']))
+
+        if 'payload' in kwargs:
+            if kwargs['payload'] is not None:
+                string_parts.append(" -d '%s'" % (kwargs['payload']))
+
+        self.logger.debug("Request Made:\nREQ: %s\n" % "".join(string_parts))
+
+    def http_log_resp(self, resp):
+        self.logger.debug("Response Received:\nRESP: [%s] %s\nRESP BODY: %s\n",
+                          resp.status_code, resp.headers, resp.text)
 
 
 # this might be a trifle naive
@@ -175,8 +210,12 @@ class ObjectSchema:
         schema_uri = "%s/%s/schema" % (endpoint.endpoint,
                                        pluralize(object_type))
 
+        #self.endpoint.requests.http_log_req(schema_uri, "get",
+        #                                    headers={'content-type':
+        #                                    'application/json'})
         r = endpoint.requests.get(schema_uri,
                                   headers={'content-type': 'application/json'})
+        #self.endpoint.requests.http_log_resp(r)
         # if we can't get a schema, might as well
         # just let the exception happen
         self.field_schema = r.json['schema']
@@ -478,16 +517,25 @@ class LazyDict:
                                              pluralize(self.object_type)) + '/'
 
             if self.filter_string:
+                self.endpoint.requests.http_log_req(
+                    urlparse.urljoin(base_endpoint, 'filter'), "post",
+                    headers={'content-type': 'application/json'},
+                    data=json.dumps({'filter': self.filter_string}))
                 r = self.endpoint.requests.post(
                     urlparse.urljoin(base_endpoint, 'filter'),
                     headers={'content-type': 'application/json'},
                     data=json.dumps({'filter': self.filter_string}))
+                self.endpoint.requests.http_log_resp(r)
                 self.logger.debug('payload: %s' % (
                     {'filter': self.filter_string}))
             else:
+                self.endpoint.requests.http_log_req(
+                    base_endpoint, "get",
+                    headers={'content-type': 'application/json'})
                 r = self.endpoint.requests.get(
                     base_endpoint,
                     headers={'content-type': 'application/json'})
+                self.endpoint.requests.http_log_resp(r)
 
             for item in r.json[pluralize(self.object_type)]:
                 type_class = "OpenCenter%s" % self.object_type.capitalize()
@@ -541,7 +589,10 @@ class OpenCenterEndpoint:
         self.schemas = {}
 
         try:
-            r = self.requests.get('%s/schema' % self.endpoint)
+            #self.requests.http_log_req('%s/schema' % self.endpoint, 'get')
+            r = self.requests.get('%s/schema' % self.endpoint, timeout=15)
+            #self.requests.http_log_resp(r)
+
         except requests.exceptions.ConnectionError as e:
             self.logger.error(str(e))
             self.logger.error('Could not connect to endpoint %s/schema' % (
@@ -767,15 +818,16 @@ class OpenCenterObject(object):
 
     def _request(self, request_type, polling=False, **kwargs):
         plan_args = None
+        url = None
         if 'plan_args' in kwargs:
             plan_args = kwargs.pop('plan_args')
+
+        if 'url' in kwargs:
+            url = kwargs.get('url')
 
         r = RequestResult(self.endpoint,
                           self._raw_request(request_type, **kwargs))
         try:
-            self.logger.debug('got result back: %s' % r.json)
-            self.logger.debug('got result code: %d' % r.status_code)
-
             if self.object_type in r.json:
                 self.attributes = r.json[self.object_type]
         except KeyboardInterrupt:
@@ -817,7 +869,8 @@ class OpenCenterObject(object):
                      payload=None,
                      poll=False,
                      headers={'content-type': 'application/json'},
-                     url=None):
+                     url=None,
+                     params=None):
         if not url:
             url = "%s%s" % (self._url_for(),
                             '?poll' if poll else '')
@@ -826,7 +879,11 @@ class OpenCenterObject(object):
         if payload:
             payload = json.dumps(payload)
             self.logger.debug('Payload: %s' % (payload))
-        r = fn(url, data=payload, headers=headers)
+
+        self.endpoint.requests.http_log_req(url, request_type, data=payload,
+                                            headers=headers, params=params)
+        r = fn(url, data=payload, headers=headers, params=params)
+        self.endpoint.requests.http_log_resp(r)
         return r
 
     def _request_put(self):
@@ -868,13 +925,12 @@ class OpenCenterTask(OpenCenterObject):
 
     def _logtail(self, **kwargs):
         url = urlparse.urljoin(self._url_for() + '/', 'logs')
+        payload = {}
         try:
-            offset = '='.join(('offset', kwargs['offset']))
-        except TypeError:
+            payload['offset'] = kwargs['offset']
+        except KeyError:
             pass
-        else:
-            url = '?'.join((url, offset))
-        return self._request('get', url=url).response.content
+        return self._request('get', url=url, params=payload).response.content
 
 
 class OpenCenterAdventure(OpenCenterObject):
@@ -922,9 +978,9 @@ class OpenCenterNode(OpenCenterObject):
             return self.endpoint['adventures'].filter(' or '.join(
                 map(lambda x: '(id=%d)' % x, adventure_list)))
 
-    def whoami(self, name):
+    def whoami(self, **kwargs):
         url = urlparse.urljoin(self._url_for(), 'whoami')
-        return self._request('post', url=url, payload={"hostname": name})
+        return self._request('post', url=url, payload=kwargs)
 
 
 class ClientApp:

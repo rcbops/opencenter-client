@@ -56,7 +56,11 @@ Using opencentercli
 
 **Show details about a particular node:**
 
-    opencentercli node show <node id>
+    opencentercli node show <node id> [ --property x.y.z ]
+
+**Move a node to a new container**
+
+    opencentercli node move node_id_or_name container_id_or_name
 
 **Show all adventures:**
 
@@ -68,7 +72,7 @@ Using opencentercli
 
 **Show adventures a node can execute:**
 
-    opencentrecli adventures <node id>
+    opencentrecli node adventure list <node id>
 
 **Execute an adventure on a particular node:**
 
@@ -82,7 +86,7 @@ Using opencentercli
 
     opencentercli task show <task id>
 
-** Show logs for a task **
+**Show logs for a task**
 
     opencentercli task logs <task id>
 
@@ -93,3 +97,8 @@ Using opencentercli
 **Override opencenter server endpoint:**
 
     OPENCENTER_ENDPOINT=http://<opencenter server>:8080 opencentercli node list
+
+Or:
+
+    opencentercli --endpoint "http://<opencenter server>:8080"
+
