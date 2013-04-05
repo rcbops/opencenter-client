@@ -572,8 +572,14 @@ class OpenCenterEndpoint:
     def __init__(self, endpoint=None, cert=None, opencenter_ca=None,
                  user=None,
                  password=None,
-                 interactive=False):
-        self.endpoint = endpoint
+                 interactive=False,
+                 admin=False):
+
+        if admin:
+            self.endpoint = endpoint + '/admin'
+        else:
+            self.endpoint = endpoint
+
         self.interactive = interactive
         if endpoint is None:
             self.endpoint = os.environ.get('OPENCENTER_ENDPOINT',
