@@ -991,6 +991,7 @@ class OpenCenterNode(OpenCenterObject):
 
 class ClientApp:
     def main(self, argv):
+        admin = False
         argv.pop(0)
         uopts = [x for x in argv if not x.startswith('--')]
         fopts = [x.replace('--', '') for x in argv if x not in uopts]
@@ -1001,6 +1002,10 @@ class ClientApp:
         else:
             logging.basicConfig(level=logging.WARN)
 
+        if 'admin' in fopts:
+            admin = True
+            fopts.remove('admin')
+
         payload = dict([x.split('=', 1) for x in fopts])
 
         endpoint = None
@@ -1008,7 +1013,7 @@ class ClientApp:
             endpoint = payload['endpoint']
             del payload['endpoint']
 
-        ep = OpenCenterEndpoint(endpoint, interactive=True)
+        ep = OpenCenterEndpoint(endpoint, admin=admin, interactive=True)
 
         if uopts[0] == 'shell':
             code.interact(local=locals())
