@@ -176,7 +176,7 @@ class OpenCenterShell():
         arg_tree = {
             'node': {
                 'help': 'An opencenter object, may represent a server'
-                        ' or a container for other nodes. ',
+                        ' or a container for other nodes',
                 'dest': 'cli_action',
                 'subcommands': deep_update(rw_actions, {
                     'adventure': {
@@ -357,7 +357,7 @@ class OpenCenterShell():
                 })
             },
             'adventure': {
-                'help': 'A predefined set of tasks for achieving a goal.',
+                'help': 'A predefined set of tasks for achieving a goal',
                 'dest': 'cli_action',
                 'subcommands': deep_update(rw_actions, {
                     'execute': {
@@ -427,9 +427,15 @@ class OpenCenterShell():
             },
             'primitive': {
                 'help': 'A low level action that can be executed as part of '
-                        'an OpenCenter adventure.',
+                        'an OpenCenter adventure',
                 'dest': 'cli_action',
                 'subcommands': ro_actions
+            },
+            'filter': {
+                'help': 'Filters are used to group / organize nodes, can be '
+                        'used in adventure criteria etc.',
+                'dest': 'cli_action',
+                'subcommands': deep_update(ro_actions, {'filter': None})
             }
         }
 
