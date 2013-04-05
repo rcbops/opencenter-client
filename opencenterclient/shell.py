@@ -435,7 +435,7 @@ class OpenCenterShell():
                 'help': 'Filters are used to group / organize nodes, can be '
                         'used in adventure criteria etc.',
                 'dest': 'cli_action',
-                'subcommands': deep_update(ro_actions, {'filter':None})
+                'subcommands': deep_update(ro_actions, {'filter': None})
             }
         }
 
