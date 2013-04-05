@@ -534,6 +534,16 @@ class OpenCenterShell():
                  "http://host:8080 or https://user:pass@host:8443"
         )
 
+        global_options.add_argument(
+            '-a',
+            '--admin',
+            dest='use_admin_endpoint',
+            default=False,
+            action="store_true",
+            help="Use the admin endpoint rather than the normal endpoint. "
+                 "This adds /admin to the endpoint URL."
+        )
+
         #Root parser - all other commands will be added as sub parsers.
         parser = argparse.ArgumentParser(description='OpenCenter CLI',
                                          prog='opencentercli',
@@ -738,6 +748,9 @@ class OpenCenterShell():
             self.logger.debug("CLI arguments: %s" % str(args))
         else:
             self.set_log_level(logging.WARNING)
+
+        if args.use_admin_endpoint:
+            args.endpoint = args.endpoint + "/admin"
 
         try:
             self.set_endpoint(args.endpoint)
