@@ -58,8 +58,9 @@ def deep_update(base, updates):
 
 class OpenCenterShell():
 
-    def set_endpoint(self, endpoint_url):
-        self.endpoint = OpenCenterEndpoint(endpoint=endpoint_url,
+    def set_endpoint(self, args):
+        self.endpoint = OpenCenterEndpoint(endpoint=args.endpoint,
+                                           admin=args.use_admin_endpoint,
                                            interactive=True)
 
     def set_log_level(self, level):
@@ -749,11 +750,8 @@ class OpenCenterShell():
         else:
             self.set_log_level(logging.WARNING)
 
-        if args.use_admin_endpoint:
-            args.endpoint = args.endpoint + "/admin"
-
         try:
-            self.set_endpoint(args.endpoint)
+            self.set_endpoint(args)
         except Exception, e:
             print "'%s' is not a valid endpoint. Please specify a valid " \
                   "endpoint in environment variable OPENCENTER_ENDPOINT" \
