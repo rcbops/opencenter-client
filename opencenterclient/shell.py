@@ -104,11 +104,30 @@ class OpenCenterShell():
         # Argument order can be influenced with an 'order' key under an
         # argument. The default order is 0 and negative numbers sort first.
 
+        # this arg is used in list and filter, pulled out here for DRYness.
+        property_list_arg = {
+            'help': 'Print the specified properties for all {0}s'
+                    '. Multiple space separated properties may '
+                    'be specified.  '
+                    'Example: "--property name facts.parent_id". '
+                    'If the '
+                    'property is a nested structure, '
+                    'then dotted paths can be specified. Example:'
+                    ' --property attrs.opencenter_agent_actions.'
+                    'upgrade_agent.timeout Lookup tries object'
+                    ' attributes, dictionary keys and list '
+                    'indices. Properties that cannot be resolved'
+                    ' are output as _.',
+            'nargs': '+'
+        }
+
         # Read Only Actions:
         ro_actions = {
             'list': {
                 'help': 'List all {0}s',
-                'args': {}
+                'args': {
+                    '--property': property_list_arg
+                }
             },
             'show': {
                 'help': 'Show the properties of a {0}',
@@ -135,7 +154,8 @@ class OpenCenterShell():
                     'filter_string': {
                         'help': 'filter string, '
                                 'Example: id=4 or name="workspace"'
-                    }
+                    },
+                    '--property': property_list_arg
                 }
             }
         }
@@ -436,7 +456,7 @@ class OpenCenterShell():
                 'help': 'Filters are used to group / organize nodes, can be '
                         'used in adventure criteria etc.',
                 'dest': 'cli_action',
-                'subcommands': deep_update(ro_actions, {'filter': None})
+                'subcommands': ro_actions
             }
         }
 
@@ -568,6 +588,39 @@ class OpenCenterShell():
         fields = schema.field_schema
         return fields
 
+    def property_lookup(self, path, item):
+        original_item = item
+        for path_section in path.split('.'):
+
+            # Lookup by object attribute
+            if hasattr(item, path_section):
+                item = getattr(item, path_section)
+                continue
+            else:
+                try:
+                    # Lookup by dictionary key
+                    item = item[path_section]
+                    continue
+                except:
+                    try:
+                        # Lookup by list index
+                        item = item[int(path_section)]
+                        continue
+                    except:
+                        pass
+
+            # None of the lookup methods succeeded, so property path must
+            # be invalid.
+            raise ValueError(
+                'Cannot resolve "%s" from property string "%s" for'
+                ' %s' % (
+                    path_section,
+                    path,
+                    original_item.name
+                )
+            )
+        return item
+
     def do_show(self, args, obj):
         """Print a whole object, or a specific property following a dotted
         path.
@@ -587,36 +640,7 @@ class OpenCenterShell():
             print act[id]
         else:
             item = act[id]
-            for path_section in args.property.split('.'):
-
-                # Lookup by object attribute
-                if hasattr(item, path_section):
-                    item = getattr(item, path_section)
-                    continue
-                else:
-                    try:
-                        # Lookup by dictionary key
-                        item = item[path_section]
-                        continue
-                    except:
-                        try:
-                            # Lookup by list index
-                            item = item[int(path_section)]
-                            continue
-                        except:
-                            pass
-
-                # None of the lookup methods succeeded, so property path must
-                # be invalid.
-                raise ValueError(
-                    'Cannot resolve "%s" from property string "%s" for'
-                    ' %s %s' % (
-                        path_section,
-                        args.property,
-                        singularize(obj),
-                        act[id].name
-                    )
-                )
+            item = self.property_lookup(args.property, item)
 
             # Assume the property is JSON and try to pretty-print. If that
             # fails, print the item normally
@@ -636,7 +660,7 @@ class OpenCenterShell():
 
     def do_filter(self, args, obj):
         act = getattr(self.endpoint, obj)
-        print act.filter(args.filter_string)
+        self.do_list(args, obj, act=act.filter(args.filter_string))
 
     def do_create(self, args, obj):
         field_schema = self.get_field_schema(obj)
@@ -673,6 +697,24 @@ class OpenCenterShell():
         print "Adventures that may be executed against node %s, %s:" % (
             args.node_id, self.endpoint.nodes[args.node_id].name)
         print self.endpoint.nodes[args.node_id]._adventures()
+
+    def do_list(self, args, obj, act=None):
+        if act is None:
+            act = getattr(self.endpoint, obj)
+
+        if args.property is None:
+            #No properties specified, print the whole table
+            print act
+            return
+
+        for item in act:
+            properties = []
+            for path in args.property:
+                try:
+                    properties.append(str(self.property_lookup(path, item)))
+                except ValueError:
+                    properties.append("_")
+            print ",".join(properties)
 
     def do_file(self, args):
         """  List or retrieve files from a node, by creating tasks for the
@@ -796,7 +838,7 @@ class OpenCenterShell():
             del args.arguments
 
         if args.cli_action == "list":
-            print getattr(self.endpoint, pluralize(args.cli_noun))
+            self.do_list(args, pluralize(args.cli_noun))
 
         if args.cli_action == "show":
             #has ID, show individual item
