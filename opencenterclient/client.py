@@ -477,12 +477,13 @@ class LazyDict:
                 value = OpenCenterObject(object_type=self.object_type,
                                          endpoint=self.endpoint)
             value.id = key
+
             if value._request_get():
                 self.dict[key] = value
+                return value
             else:
                 raise KeyError("OpenCenter%s id '%s' not found" %
                                (self.object_type.capitalize(), key))
-            return value
         else:
             # if the table is dirty, refresh the entry
             if self.dirty:
@@ -647,6 +648,12 @@ class OpenCenterEndpoint:
         if not object_type in self.schemas:
             self.schemas[object_type] = ObjectSchema(self, object_type)
         return self.schemas[object_type]
+
+    def whoami(self, *args, **kwargs):
+        """Get opencenter node from hostname or ID."""
+        root = self.nodes.filter(
+            'facts.parent_id = None and name = "workspace"').first()
+        return root.whoami(*args, **kwargs)
 
 
 class OpenCenterObject(object):
@@ -877,20 +884,31 @@ class OpenCenterObject(object):
                      headers={'content-type': 'application/json'},
                      url=None,
                      params=None):
+        """Make an http request using the endpoint's requests object."""
+
         if not url:
             url = "%s%s" % (self._url_for(),
                             '?poll' if poll else '')
 
-        fn = getattr(self.endpoint.requests, request_type)
         if payload:
             payload = json.dumps(payload)
-            self.logger.debug('Payload: %s' % (payload))
+            self.logger.debug('Payload: %s' % payload)
 
+        # Log request info ( for debug output )
         self.endpoint.requests.http_log_req(url, request_type, data=payload,
                                             headers=headers, params=params)
-        r = fn(url, data=payload, headers=headers, params=params)
-        self.endpoint.requests.http_log_resp(r)
-        return r
+
+        # Retrieve and execute the required requests.http-method function
+        response = getattr(self.endpoint.requests, request_type)(
+            url,
+            data=payload,
+            headers=headers,
+            params=params
+        )
+
+        # Log response info, also for debug.
+        self.endpoint.requests.http_log_resp(response)
+        return response
 
     def _request_put(self):
         return self._request('put', payload=self.attributes)
