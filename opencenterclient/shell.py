@@ -136,14 +136,16 @@ class OpenCenterShell():
                         'help': 'name or id of the {0} to show'
                     },
                     '--property': {
-                        'help': 'Only print one property of this '
-                                '{0}. Example: --property id. If the '
+                        'help': 'Print one or more property of this '
+                                '{0}. Example: --property id name. Multiple '
+                                'properties are seperated by commas. If a '
                                 'property is a nested structure, '
                                 'then dotted paths can be specified. Example:'
                                 ' --property attrs.opencenter_agent_actions.'
                                 'upgrade_agent.timeout Lookup tries object'
                                 ' attributes, dictionary keys and list '
-                                'indices. '
+                                'indices. ',
+                        'nargs': '+'
                     }
                 }
             },
@@ -633,22 +635,29 @@ class OpenCenterShell():
             3) List Key: convert to int, then []
 
         """
+
         id = args.id
         act = getattr(self.endpoint, obj)
         if args.property is None:
             #No property specified, print whole item.
             print act[id]
-        else:
-            item = act[id]
-            item = self.property_lookup(args.property, item)
+            return
 
+        properties = []
+        item = act[id]
+        for property_string in args.property:
+            properties.append(self.property_lookup(property_string, item))
+
+        if len(properties) == 1:
             # Assume the property is JSON and try to pretty-print. If that
             # fails, print the item normally
             try:
-                print json.dumps(item, sort_keys=True, indent=2,
+                print json.dumps(properties[0], sort_keys=True, indent=2,
                                  separators=(',', ':'))
             except:
-                print item
+                print properties[0]
+        else:
+            print ",".join(map(str, properties))
 
     def do_logs(self, args):
         id = args.task_id
