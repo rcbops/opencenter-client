@@ -973,7 +973,8 @@ class OpenCenterNode(OpenCenterObject):
         self.synthesized_fields = {'tasks': lambda: self._tasks(),
                                    'task': lambda: self._task(),
                                    'task_blocking': lambda: self._task(True),
-                                   'adventures': lambda: self._adventures()}
+                                   'adventures': lambda: self._adventures(),
+                                   'parent': lambda: self._parent()}
 
     # return filtered list of all tasks
     def _tasks(self):
@@ -1001,6 +1002,11 @@ class OpenCenterNode(OpenCenterObject):
                 return None
             return self.endpoint['adventures'].filter(' or '.join(
                 map(lambda x: '(id=%d)' % x, adventure_list)))
+
+    def _parent(self):
+        if 'parent_id' not in self.facts:
+            return None
+        return self.endpoint.nodes[self.facts['parent_id']]
 
     def whoami(self, **kwargs):
         url = urlparse.urljoin(self._url_for(), 'whoami')
